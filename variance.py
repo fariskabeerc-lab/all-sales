@@ -6,7 +6,7 @@ import os
 # Page Configuration
 # ==========================
 st.set_page_config(page_title="Outlet Item Comparison", layout="wide")
-st.title("📊 All Outlets Item Sales Dashboard (October)")
+st.title("📊 October Outlet & Item Sales Dashboard")
 
 # ==========================
 # Password Protection
@@ -37,7 +37,7 @@ OUTLET_FILES = {
 }
 
 # ==========================
-# Load Data Function
+# Load All Data
 # ==========================
 @st.cache_data
 def load_all_data():
@@ -46,7 +46,7 @@ def load_all_data():
         if os.path.exists(file_name):
             try:
                 df = pd.read_excel(file_name)
-                df.columns = [c.strip() for c in df.columns]  # clean column names
+                df.columns = [c.strip() for c in df.columns]
                 combined_data[outlet] = df
             except Exception as e:
                 st.error(f"❌ Error reading {file_name}: {e}")
@@ -57,17 +57,15 @@ def load_all_data():
 data_dict = load_all_data()
 
 # ==========================
-# Search Section
+# Search Item
 # ==========================
 st.subheader("🔍 Search Item Across Outlets")
-
 search_query = st.text_input("Enter Item Name or Item Code:")
 
 if search_query:
     results = []
 
     for outlet, df in data_dict.items():
-        # find matching rows by item code or item name (case insensitive)
         match = df[df.astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)]
         if not match.empty:
             for _, row in match.iterrows():
@@ -86,17 +84,39 @@ if search_query:
         result_df = pd.DataFrame(results)
         st.dataframe(result_df, use_container_width=True)
 
-        # Summary section
-        st.subheader("📈 Summary Across All Outlets")
+        # Summary across all outlets for this item
+        st.subheader("📈 Summary Across All Outlets for This Item")
         summary = result_df[["Total Sales", "Total Profit"]].sum()
         avg_margin = result_df["Excise Margin (%)"].mean()
 
         c1, c2, c3 = st.columns(3)
-        c1.metric("💰 Total Sales (All Outlets)", f"{summary['Total Sales']:,.2f}")
-        c2.metric("📊 Total Profit (All Outlets)", f"{summary['Total Profit']:,.2f}")
+        c1.metric("💰 Total Sales", f"{summary['Total Sales']:,.2f}")
+        c2.metric("📊 Total Profit", f"{summary['Total Profit']:,.2f}")
         c3.metric("📈 Average Margin (%)", f"{avg_margin:.2f}%")
 
     else:
         st.warning(f"❌ No matching items found for '{search_query}' in any outlet.")
 else:
     st.info("👆 Enter an item name or code to search across all outlets.")
+
+# ==========================
+# Outlet-wise Total Table
+# ==========================
+st.subheader("🏪 Outlet-wise Total Sales, Profit & Avg Margin")
+
+outlet_summary = []
+
+for outlet, df in data_dict.items():
+    if not df.empty:
+        total_sales = df["Total Sales"].sum() if "Total Sales" in df.columns else 0
+        total_profit = df["Total Profit"].sum() if "Total Profit" in df.columns else 0
+        avg_margin = df["Excise Margin (%)"].mean() if "Excise Margin (%)" in df.columns else 0
+        outlet_summary.append({
+            "Outlet": outlet,
+            "Total Sales": total_sales,
+            "Total Profit": total_profit,
+            "Average Margin (%)": avg_margin
+        })
+
+summary_df = pd.DataFrame(outlet_summary).sort_values(by="Total Sales", ascending=False)
+st.dataframe(summary_df, use_container_width=True)
