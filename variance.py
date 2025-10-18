@@ -39,6 +39,7 @@ st.title("📊 October Outlet & Item Sales Dashboard")
 # ==========================
 OUTLET_FILES = {
     "Hilal": "Hilal oct.Xlsx",
+    "oud mehta": "oudmehta oct.Xlsx",
     "Safa Super": "Safa super oct.Xlsx",
     "Azhar HP": "azhar HP oct.Xlsx",
     "Azhar": "azhar Oct.Xlsx",
