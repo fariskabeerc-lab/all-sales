@@ -6,15 +6,29 @@ import os
 # Page Configuration
 # ==========================
 st.set_page_config(page_title="Outlet Item Comparison", layout="wide")
-st.title("📊 October Outlet & Item Sales Dashboard")
 
 # ==========================
-# Password Protection
+# Authentication
 # ==========================
-password = st.text_input("Enter Password", type="password")
-if password != "safa123":
-    st.warning("🔒 Enter correct password to access the dashboard.")
-    st.stop()
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    st.title("🔒 Enter Password to Access Dashboard")
+    password_input = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if password_input == "123123":
+            st.session_state.authenticated = True
+            st.success("✅ Password correct! Access granted.")
+            st.experimental_rerun()
+        else:
+            st.error("❌ Incorrect password. Try again.")
+    st.stop()  # Stop the rest of the app from loading until authenticated
+
+# ==========================
+# Dashboard Starts Here
+# ==========================
+st.title("📊 October Outlet & Item Sales Dashboard")
 
 # ==========================
 # Outlet File Mapping
@@ -46,7 +60,7 @@ def load_all_data():
         if os.path.exists(file_name):
             try:
                 df = pd.read_excel(file_name)
-                df.columns = [c.strip() for c in df.columns]  # clean column names
+                df.columns = [c.strip() for c in df.columns]
                 combined_data[outlet] = df
             except Exception as e:
                 st.error(f"❌ Error reading {file_name}: {e}")
