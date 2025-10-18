@@ -46,7 +46,7 @@ def load_all_data():
         if os.path.exists(file_name):
             try:
                 df = pd.read_excel(file_name)
-                df.columns = [c.strip() for c in df.columns]
+                df.columns = [c.strip() for c in df.columns]  # clean column names
                 combined_data[outlet] = df
             except Exception as e:
                 st.error(f"❌ Error reading {file_name}: {e}")
@@ -66,6 +66,7 @@ if search_query:
     results = []
 
     for outlet, df in data_dict.items():
+        # Find matching rows by item code or item name (case insensitive)
         match = df[df.astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)]
         if not match.empty:
             for _, row in match.iterrows():
@@ -74,9 +75,9 @@ if search_query:
                     "Item Code": row.get("Item Code", ""),
                     "Item": row.get("Items", ""),
                     "Category": row.get("Category", ""),
-                    "Total Sales": row.get("Total Sales", 0),
-                    "Total Profit": row.get("Total Profit", 0),
-                    "Excise Margin (%)": row.get("Excise Margin (%)", 0)
+                    "Total Sales": pd.to_numeric(row.get("Total Sales", 0), errors="coerce"),
+                    "Total Profit": pd.to_numeric(row.get("Total Profit", 0), errors="coerce"),
+                    "Excise Margin (%)": pd.to_numeric(row.get("Excise Margin (%)", 0), errors="coerce")
                 })
 
     if results:
@@ -84,16 +85,16 @@ if search_query:
         result_df = pd.DataFrame(results)
         st.dataframe(result_df, use_container_width=True)
 
-        # Summary across all outlets for this item
+        # Summary metrics for the searched item
         st.subheader("📈 Summary Across All Outlets for This Item")
-        summary = result_df[["Total Sales", "Total Profit"]].sum()
+        total_sales = result_df["Total Sales"].sum()
+        total_profit = result_df["Total Profit"].sum()
         avg_margin = result_df["Excise Margin (%)"].mean()
 
         c1, c2, c3 = st.columns(3)
-        c1.metric("💰 Total Sales", f"{summary['Total Sales']:,.2f}")
-        c2.metric("📊 Total Profit", f"{summary['Total Profit']:,.2f}")
+        c1.metric("💰 Total Sales", f"{total_sales:,.2f}")
+        c2.metric("📊 Total Profit", f"{total_profit:,.2f}")
         c3.metric("📈 Average Margin (%)", f"{avg_margin:.2f}%")
-
     else:
         st.warning(f"❌ No matching items found for '{search_query}' in any outlet.")
 else:
@@ -108,9 +109,9 @@ outlet_summary = []
 
 for outlet, df in data_dict.items():
     if not df.empty:
-        total_sales = df["Total Sales"].sum() if "Total Sales" in df.columns else 0
-        total_profit = df["Total Profit"].sum() if "Total Profit" in df.columns else 0
-        avg_margin = df["Excise Margin (%)"].mean() if "Excise Margin (%)" in df.columns else 0
+        total_sales = pd.to_numeric(df.get("Total Sales", 0), errors="coerce").sum()
+        total_profit = pd.to_numeric(df.get("Total Profit", 0), errors="coerce").sum()
+        avg_margin = pd.to_numeric(df.get("Excise Margin (%)", 0), errors="coerce").mean()
         outlet_summary.append({
             "Outlet": outlet,
             "Total Sales": total_sales,
