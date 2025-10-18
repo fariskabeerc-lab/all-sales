@@ -13,20 +13,24 @@ st.set_page_config(page_title="Outlet Item Comparison", layout="wide")
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
+# Show login if not authenticated
 if not st.session_state.authenticated:
     st.title("🔒 Enter Password to Access Dashboard")
     password_input = st.text_input("Password", type="password")
-    if st.button("Login"):
+    login_button = st.button("Login")
+
+    if login_button:
         if password_input == "123123":
             st.session_state.authenticated = True
             st.success("✅ Password correct! Access granted.")
-            st.experimental_rerun()
         else:
             st.error("❌ Incorrect password. Try again.")
-    st.stop()  # Stop the rest of the app from loading until authenticated
+
+    # Stop the app from loading until authenticated
+    st.stop()
 
 # ==========================
-# Dashboard Starts Here
+# Dashboard Content Starts Here
 # ==========================
 st.title("📊 October Outlet & Item Sales Dashboard")
 
