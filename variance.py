@@ -7,30 +7,30 @@ import os
 # PAGE CONFIG
 # ================================
 st.set_page_config(page_title="📊 Multi-Outlet Sales Dashboard", layout="wide")
-st.title("📊 Multi-Outlet Sales & Category Insights")
+st.title("📊 October Multi-Outlet Sales & Category Insights")
 
 # ================================
 # OUTLET FILE MAPPING
 # ================================
 OUTLET_FILES = {
-    "Azhar GT": "azhar Oct.Xlsx", 
+    "Hilal": "Hilal oct.Xlsx",
+    "Safa Super": "Safa super oct.Xlsx",
     "Azhar HP": "azhar HP oct.Xlsx",
-    "Blue pearl": "blue pearl oct.Xlsx",
-    "Fidha al madina": "fida oct.Xlsx",
+    "Azhar": "azhar Oct.Xlsx",
+    "Blue Pearl": "blue pearl oct.Xlsx",
+    "Fida": "fida oct.Xlsx",
     "Hadeqat": "hadeqat oct.Xlsx",
-    "Hilal Al madina": "Hilal oct.Xlsx",
     "Jais": "jais oct.Xlsx",
-    "Super Store": "superstore oct.Xlsx",
-    "Sahath": "sahat oct.Xlsx",
-    "Safa al madina Super": "Safa super oct.Xlsx",
     "Sabah": "sabah oct.Xlsx",
-    "shams HM": "shams HM oct.Xlsx",
-    "shams llc": "shams llc oct.Xlsx",
-    "tay tay": "tay tay oct.Xlsx"
+    "Sahat": "sahat oct.Xlsx",
+    "Shams HM": "shams HM oct.Xlsx",
+    "Shams LLC": "shams llc oct.Xlsx",
+    "Superstore": "superstore oct.Xlsx",
+    "Tay Tay": "tay tay oct.Xlsx"
 }
 
 # Folder where all Excel files are stored
-DATA_DIR = "data"  # 👈 Change to your folder path
+DATA_DIR = "data"  # 👈 Change this to your folder path (e.g., "C:/Users/salman/Desktop/outlets/")
 
 # ================================
 # LOAD ALL OUTLETS DATA
