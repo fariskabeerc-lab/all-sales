@@ -3,96 +3,124 @@ import pandas as pd
 import plotly.express as px
 import os
 
-# --- PAGE CONFIG ---
-st.set_page_config(page_title="Healthy Stock Dashboard", layout="wide")
+# ================================
+# PAGE CONFIG
+# ================================
+st.set_page_config(page_title="📊 Multi-Outlet Sales Dashboard", layout="wide")
+st.title("📊 Multi-Outlet Sales & Category Insights")
 
-# --- LOAD FILES ---
-SALES_FILE = "full sales of 2025 safa.Xlsx"
-AGING_FILE = "safa aging.xlsx"
+# ================================
+# OUTLET FILE MAPPING
+# ================================
+OUTLET_FILES = {
+    "Azhar GT": "azhar Oct.Xlsx", 
+    "Azhar HP": "azhar HP oct.Xlsx",
+    "Blue pearl": "blue pearl oct.Xlsx",
+    "Fidha al madina": "fida oct.Xlsx",
+    "Hadeqat": "hadeqat oct.Xlsx",
+    "Hilal Al madina": "Hilal oct.Xlsx",
+    "Jais": "jais oct.Xlsx",
+    "Super Store": "superstore oct.Xlsx",
+    "Sahath": "sahat oct.Xlsx",
+    "Safa al madina Super": "Safa super oct.Xlsx",
+    "Sabah": "sabah oct.Xlsx",
+    "shams HM": "shams HM oct.Xlsx",
+    "shams llc": "shams llc oct.Xlsx",
+    "tay tay": "tay tay oct.Xlsx"
+}
 
-# --- READ DATA ---
-if os.path.exists(SALES_FILE):
-    sales_df = pd.read_excel(SALES_FILE)
+# Folder where all Excel files are stored
+DATA_DIR = "data"  # 👈 Change to your folder path
+
+# ================================
+# LOAD ALL OUTLETS DATA
+# ================================
+@st.cache_data
+def load_all_outlet_data():
+    all_data = []
+    for outlet, filename in OUTLET_FILES.items():
+        file_path = os.path.join(DATA_DIR, filename)
+        if os.path.exists(file_path):
+            df = pd.read_excel(file_path)
+            df["Outlet"] = outlet
+            all_data.append(df)
+        else:
+            st.warning(f"⚠️ File not found: {filename}")
+    if all_data:
+        df_all = pd.concat(all_data, ignore_index=True)
+        df_all.columns = df_all.columns.str.strip()
+        return df_all
+    else:
+        st.error("❌ No valid Excel files found in the folder.")
+        return pd.DataFrame()
+
+df_all = load_all_outlet_data()
+
+# ================================
+# SIDEBAR: SEARCH
+# ================================
+st.sidebar.header("🔎 Search Item")
+search_input = st.sidebar.text_input("Enter Item Code or Item Name")
+
+# ================================
+# ITEM SEARCH SECTION
+# ================================
+st.subheader("🧾 Item-Wise Comparison Across Outlets")
+
+if search_input:
+    result = df_all[
+        df_all["Item Code"].astype(str).str.contains(search_input, case=False, na=False)
+        | df_all["Items"].astype(str).str.contains(search_input, case=False, na=False)
+    ]
+
+    if not result.empty:
+        st.success(f"✅ Found {len(result)} entries across {result['Outlet'].nunique()} outlets.")
+
+        display_cols = ["Outlet", "Item Code", "Items", "Category", "Total Sales", "Total Profit", "Excise Margin (%)"]
+        st.dataframe(result[display_cols].sort_values(by="Outlet"))
+
+        # --- Total Sales Bar Chart ---
+        fig = px.bar(result, x="Outlet", y="Total Sales", color="Outlet",
+                     title=f"💰 Total Sales Comparison for '{search_input}' Across Outlets",
+                     text_auto=".2s")
+        st.plotly_chart(fig, use_container_width=True)
+
+        # --- Total Profit Bar Chart ---
+        fig2 = px.bar(result, x="Outlet", y="Total Profit", color="Outlet",
+                      title=f"📈 Total Profit Comparison for '{search_input}' Across Outlets",
+                      text_auto=".2s")
+        st.plotly_chart(fig2, use_container_width=True)
+    else:
+        st.warning("⚠️ No matching item found in any outlet.")
 else:
-    st.error(f"❌ '{SALES_FILE}' not found. Please add your sales data file.")
-    st.stop()
+    st.info("👈 Enter an Item Code or Item Name in the sidebar to view comparisons.")
 
-if os.path.exists(AGING_FILE):
-    aging_df = pd.read_excel(AGING_FILE)
+# ================================
+# OUTLET vs CATEGORY ANALYSIS
+# ================================
+st.subheader("🏪 Outlet vs Category Sales Analysis")
+
+if not df_all.empty:
+    cat_summary = (
+        df_all.groupby(["Outlet", "Category"], as_index=False)["Total Sales"]
+        .sum()
+        .sort_values(by="Total Sales", ascending=False)
+    )
+
+    # --- Category Sales Chart ---
+    fig3 = px.bar(
+        cat_summary,
+        x="Outlet",
+        y="Total Sales",
+        color="Category",
+        barmode="stack",
+        title="📦 Category-wise Total Sales per Outlet"
+    )
+    st.plotly_chart(fig3, use_container_width=True)
+
+    # --- Top Categories per Outlet Table ---
+    st.subheader("🏆 Top 3 Categories by Outlet")
+    top_cats = cat_summary.groupby("Outlet").apply(lambda x: x.nlargest(3, "Total Sales")).reset_index(drop=True)
+    st.dataframe(top_cats)
 else:
-    st.warning(f"⚠️ '{AGING_FILE}' not found. Aging-related features will be disabled.")
-    aging_df = pd.DataFrame()
-
-# --- CLEAN & STANDARDIZE COLUMN NAMES ---
-sales_df.columns = sales_df.columns.str.strip().str.replace("\n", " ")
-aging_df.columns = aging_df.columns.str.strip().str.replace("\n", " ")
-
-# --- MERGE SALES + AGING DATA ---
-merge_keys = ["Item Name", "Category", "Barcode"]
-common_keys = [key for key in merge_keys if key in sales_df.columns and key in aging_df.columns]
-merged_df = pd.merge(sales_df, aging_df, how="left", on=common_keys)
-
-# --- CALCULATE AVERAGE MONTHLY SALES ---
-sales_cols = [col for col in merged_df.columns if "Total Sales" in col]
-if sales_cols:
-    merged_df["Average Monthly Sales"] = merged_df[sales_cols].mean(axis=1)
-else:
-    st.error("No 'Total Sales' columns found in sales data.")
-    st.stop()
-
-# --- SAFETY FACTOR (Months of Cover) ---
-if "Stock" in merged_df.columns:
-    merged_df["Safety Factor (Months of Cover)"] = merged_df["Stock"] / merged_df["Average Monthly Sales"]
-else:
-    st.error("No 'Stock' column found in aging data. Please include stock quantity.")
-    st.stop()
-
-# --- FILTERS (SIDEBAR) ---
-st.sidebar.header("🔍 Filters")
-
-# Category filter
-if "Category" in merged_df.columns:
-    categories = ["All"] + sorted(merged_df["Category"].dropna().unique().tolist())
-    selected_category = st.sidebar.selectbox("Select Category", categories)
-    if selected_category != "All":
-        merged_df = merged_df[merged_df["Category"] == selected_category]
-
-# Toggle to show aging data
-show_aging = st.sidebar.checkbox("Show Aging Data (Safa Aging.xlsx)", value=False)
-
-# --- MAIN SECTION ---
-st.title("📊 Healthy Stock & Safety Factor Dashboard")
-
-st.markdown("""
-This dashboard calculates **Safety Factor (Months of Cover)** for each item:
-> 🧮 `Months of Cover = Current Stock / Average Monthly Sales`
-
-- **< 1 month:** ⚠️ Low stock (reorder soon)  
-- **1–3 months:** ✅ Healthy stock  
-- **> 3 months:** 📦 Overstock
-""")
-
-# --- TOP 100 ITEMS ---
-top_items = merged_df.sort_values("Safety Factor (Months of Cover)", ascending=False).head(100)
-
-# --- HORIZONTAL BAR CHART ---
-fig = px.bar(
-    top_items,
-    x="Safety Factor (Months of Cover)",
-    y="Item Name",
-    color="Category" if "Category" in top_items.columns else None,
-    orientation="h",
-    title="Top 100 Items by Safety Factor (Months of Cover)",
-    labels={"Safety Factor (Months of Cover)": "Months of Cover", "Item Name": "Item"},
-)
-fig.update_layout(yaxis={'categoryorder': 'total ascending'}, height=1500)
-st.plotly_chart(fig, use_container_width=True)
-
-# --- DATA TABLE ---
-st.subheader("📋 Item-wise Safety Factor Data")
-st.dataframe(top_items[["Item Name", "Category", "Stock", "Average Monthly Sales", "Safety Factor (Months of Cover)"]])
-
-# --- AGING DATA SECTION ---
-if show_aging and not aging_df.empty:
-    st.subheader("📅 Safa Stock Aging Report")
-    st.dataframe(aging_df)
+    st.error("No data loaded. Please check the file names and folder path.")
