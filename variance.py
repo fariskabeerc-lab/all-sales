@@ -1,24 +1,23 @@
 import streamlit as st
 import pandas as pd
 import os
-import plotly.express as px
 
 # ==========================
 # Page Configuration
 # ==========================
-st.set_page_config(page_title="Variance Dashboard", layout="wide")
-st.title("📊 October Variance Dashboard")
+st.set_page_config(page_title="Outlet Item Comparison", layout="wide")
+st.title("📊 All Outlets Item Sales Dashboard (October)")
 
 # ==========================
 # Password Protection
 # ==========================
 password = st.text_input("Enter Password", type="password")
 if password != "safa123":
-    st.warning("⚠️ Please enter the correct password to access the dashboard.")
+    st.warning("🔒 Enter correct password to access the dashboard.")
     st.stop()
 
 # ==========================
-# File Mapping
+# Outlet File Mapping
 # ==========================
 OUTLET_FILES = {
     "Hilal": "Hilal oct.Xlsx",
@@ -38,59 +37,66 @@ OUTLET_FILES = {
 }
 
 # ==========================
-# Load Excel Function
+# Load Data Function
 # ==========================
 @st.cache_data
-def load_excel(file_name):
-    file_path = os.path.join(os.getcwd(), file_name)
-    if os.path.exists(file_path):
-        try:
-            df = pd.read_excel(file_path)
-            return df
-        except Exception as e:
-            st.error(f"❌ Error reading {file_name}: {e}")
-            return None
+def load_all_data():
+    combined_data = {}
+    for outlet, file_name in OUTLET_FILES.items():
+        if os.path.exists(file_name):
+            try:
+                df = pd.read_excel(file_name)
+                df.columns = [c.strip() for c in df.columns]  # clean column names
+                combined_data[outlet] = df
+            except Exception as e:
+                st.error(f"❌ Error reading {file_name}: {e}")
+        else:
+            st.warning(f"⚠️ File not found: {file_name}")
+    return combined_data
+
+data_dict = load_all_data()
+
+# ==========================
+# Search Section
+# ==========================
+st.subheader("🔍 Search Item Across Outlets")
+
+search_query = st.text_input("Enter Item Name or Item Code:")
+
+if search_query:
+    results = []
+
+    for outlet, df in data_dict.items():
+        # find matching rows by item code or item name (case insensitive)
+        match = df[df.astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)]
+        if not match.empty:
+            for _, row in match.iterrows():
+                results.append({
+                    "Outlet": outlet,
+                    "Item Code": row.get("Item Code", ""),
+                    "Item": row.get("Items", ""),
+                    "Category": row.get("Category", ""),
+                    "Total Sales": row.get("Total Sales", 0),
+                    "Total Profit": row.get("Total Profit", 0),
+                    "Excise Margin (%)": row.get("Excise Margin (%)", 0)
+                })
+
+    if results:
+        st.success(f"✅ Found results for '{search_query}'")
+        result_df = pd.DataFrame(results)
+        st.dataframe(result_df, use_container_width=True)
+
+        # Summary section
+        st.subheader("📈 Summary Across All Outlets")
+        summary = result_df[["Total Sales", "Total Profit"]].sum()
+        avg_margin = result_df["Excise Margin (%)"].mean()
+
+        c1, c2, c3 = st.columns(3)
+        c1.metric("💰 Total Sales (All Outlets)", f"{summary['Total Sales']:,.2f}")
+        c2.metric("📊 Total Profit (All Outlets)", f"{summary['Total Profit']:,.2f}")
+        c3.metric("📈 Average Margin (%)", f"{avg_margin:.2f}%")
+
     else:
-        st.error(f"⚠️ File not found: {file_name}")
-        return None
-
-# ==========================
-# Outlet Selection
-# ==========================
-selected_outlet = st.selectbox("🏪 Select Outlet", list(OUTLET_FILES.keys()))
-file_name = OUTLET_FILES[selected_outlet]
-df = load_excel(file_name)
-
-# ==========================
-# Display Data
-# ==========================
-if df is not None:
-    st.success(f"✅ Data loaded successfully for **{selected_outlet}**")
-
-    # Show first few rows
-    st.subheader("📋 Data Preview")
-    st.dataframe(df.head(20), use_container_width=True)
-
-    # Try to find sales/profit columns if available
-    num_cols = df.select_dtypes(include=["number"]).columns
-    if len(num_cols) >= 2:
-        sales_col = num_cols[0]
-        profit_col = num_cols[1]
-
-        # Key Metrics
-        total_sales = df[sales_col].sum()
-        total_profit = df[profit_col].sum()
-
-        col1, col2 = st.columns(2)
-        col1.metric("💰 Total Sales", f"{total_sales:,.2f}")
-        col2.metric("📈 Total Profit", f"{total_profit:,.2f}")
-
-        # Plot (if meaningful data exists)
-        fig = px.bar(df.head(20), x=df.columns[0], y=sales_col,
-                     title=f"Top 20 Items - {selected_outlet}",
-                     labels={sales_col: "Sales", df.columns[0]: "Item"})
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("ℹ️ No numeric columns found for visualization.")
+        st.warning(f"❌ No matching items found for '{search_query}' in any outlet.")
 else:
-    st.warning("⚠️ Please check if the Excel file name matches exactly and is in the same folder as this script.")
+    st.info("👆 Enter an item name or code to search across all outlets.")
