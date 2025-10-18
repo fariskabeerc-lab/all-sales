@@ -63,7 +63,7 @@ st.subheader("🔍 Search Item Across Outlets")
 search_query = st.text_input("Enter Item Name or Item Code:")
 
 # ==========================
-# Prepare Result Table
+# Prepare Results
 # ==========================
 results = []
 
@@ -71,14 +71,14 @@ for outlet, df in data_dict.items():
     if df.empty:
         continue
 
-    # If search query exists, filter rows
+    # Filter rows if search query exists
     if search_query:
-        match = df[df.astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)]
+        df_filtered = df[df.astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)]
     else:
-        match = df
+        df_filtered = df
 
-    if not match.empty:
-        for _, row in match.iterrows():
+    if not df_filtered.empty:
+        for _, row in df_filtered.iterrows():
             results.append({
                 "Outlet": outlet,
                 "Item Code": row.get("Item Code", ""),
@@ -90,18 +90,7 @@ for outlet, df in data_dict.items():
             })
 
 # ==========================
-# Show Item Table (if search)
-# ==========================
-if search_query:
-    if results:
-        st.success(f"✅ Found results for '{search_query}'")
-        result_df = pd.DataFrame(results)
-        st.dataframe(result_df, use_container_width=True)
-    else:
-        st.warning(f"❌ No matching items found for '{search_query}' in any outlet.")
-
-# ==========================
-# Key Insights
+# Key Insights (Always at Top)
 # ==========================
 st.subheader("📈 Key Insights")
 if results:
@@ -115,7 +104,32 @@ if results:
     c2.metric("📊 Total Profit", f"{total_profit:,.2f}")
     c3.metric("📈 Average Margin (%)", f"{avg_margin:.2f}%")
 else:
-    st.info("Insights will appear here after search.")
+    # If no search or no matches, show totals across all outlets
+    total_sales = 0
+    total_profit = 0
+    margins = []
+
+    for outlet, df in data_dict.items():
+        if not df.empty:
+            total_sales += pd.to_numeric(df.get("Total Sales", 0), errors="coerce").sum()
+            total_profit += pd.to_numeric(df.get("Total Profit", 0), errors="coerce").sum()
+            margins.extend(pd.to_numeric(df.get("Excise Margin (%)", 0), errors="coerce").dropna().tolist())
+
+    avg_margin = sum(margins) / len(margins) if margins else 0
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("💰 Total Sales", f"{total_sales:,.2f}")
+    c2.metric("📊 Total Profit", f"{total_profit:,.2f}")
+    c3.metric("📈 Average Margin (%)", f"{avg_margin:.2f}%")
+
+# ==========================
+# Show Item Table (if search)
+# ==========================
+if search_query and results:
+    st.subheader("🔹 Item-wise Details Across Outlets")
+    st.dataframe(result_df_numeric, use_container_width=True)
+elif search_query and not results:
+    st.warning(f"❌ No matching items found for '{search_query}' in any outlet.")
 
 # ==========================
 # Outlet-wise Total Table (dynamic with search)
