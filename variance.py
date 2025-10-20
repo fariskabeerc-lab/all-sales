@@ -87,8 +87,8 @@ exclude_categories = st.sidebar.multiselect("Exclude Categories", options=df["Ca
 outlets = ["All"] + sorted(df["Outlet"].unique().tolist())
 selected_outlet = st.sidebar.selectbox("Select Outlet", outlets)
 
-# Margin Filter
-margin_filters = ["All", "< 0", "< 5", "10 - 20", "20 - 30", "30 +"]
+# Margin Filter (non-overlapping)
+margin_filters = ["All", "< 0", "0 - 5", "5 - 10", "10 - 20", "20 - 30", "30 +"]
 selected_margin = st.sidebar.selectbox("Select Margin Range (%)", margin_filters)
 
 # ===============================
@@ -108,12 +108,14 @@ if exclude_categories:
 if selected_outlet != "All":
     filtered_df = filtered_df[filtered_df["Outlet"] == selected_outlet]
 
-# Margin
+# Margin (non-overlapping)
 if selected_margin != "All":
     if selected_margin == "< 0":
         filtered_df = filtered_df[filtered_df["Margin %"] < 0]
-    elif selected_margin == "< 5":
-        filtered_df = filtered_df[filtered_df["Margin %"] < 5]
+    elif selected_margin == "0 - 5":
+        filtered_df = filtered_df[(filtered_df["Margin %"] >= 0) & (filtered_df["Margin %"] < 5)]
+    elif selected_margin == "5 - 10":
+        filtered_df = filtered_df[(filtered_df["Margin %"] >= 5) & (filtered_df["Margin %"] < 10)]
     elif selected_margin == "10 - 20":
         filtered_df = filtered_df[(filtered_df["Margin %"] >= 10) & (filtered_df["Margin %"] < 20)]
     elif selected_margin == "20 - 30":
