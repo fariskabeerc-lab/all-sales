@@ -2,29 +2,32 @@ import streamlit as st
 import pandas as pd
 import os
 
-# ======================
-# AUTHENTICATION
-# ======================
-st.set_page_config(page_title="All Outlets Dashboard", layout="wide")
+# =====================================================
+# PAGE CONFIG
+# =====================================================
+st.set_page_config(page_title="📊 All Outlets Dashboard", layout="wide")
 
+# =====================================================
+# AUTHENTICATION
+# =====================================================
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
 if not st.session_state["authenticated"]:
     st.title("🔒 Secure Access")
-    password = st.text_input("Enter password", type="password")
+    password = st.text_input("Enter Password", type="password")
     if st.button("Login"):
         if password == "123123":
             st.session_state["authenticated"] = True
-            st.success("✅ Login successful!")
+            st.success("✅ Access Granted")
             st.rerun()
         else:
-            st.error("❌ Incorrect password")
+            st.error("❌ Incorrect Password")
     st.stop()
 
-# ======================
-# LOAD DATA
-# ======================
+# =====================================================
+# OUTLET FILES
+# =====================================================
 OUTLET_FILES = {
     "Hilal": "Hilal oct.Xlsx",
     "Safa Super": "Safa super oct.Xlsx",
@@ -42,8 +45,11 @@ OUTLET_FILES = {
     "Tay Tay": "tay tay oct.Xlsx"
 }
 
+# =====================================================
+# LOAD DATA
+# =====================================================
 @st.cache_data
-def load_all_data():
+def load_all_outlets():
     all_data = []
     for outlet, file in OUTLET_FILES.items():
         if os.path.exists(file):
@@ -53,24 +59,22 @@ def load_all_data():
         else:
             st.warning(f"⚠️ File not found: {file}")
     if all_data:
-        return pd.concat(all_data, ignore_index=True)
-    else:
-        return pd.DataFrame()
+        combined = pd.concat(all_data, ignore_index=True)
+        combined.columns = combined.columns.str.strip()
+        if "Excise Margin (%)" not in combined.columns and "Total Profit" in combined.columns and "Total Sales" in combined.columns:
+            combined["Excise Margin (%)"] = (combined["Total Profit"] / combined["Total Sales"] * 100).round(2)
+        return combined
+    return pd.DataFrame()
 
-df = load_all_data()
+df = load_all_outlets()
 
 if df.empty:
-    st.error("No data files found. Please make sure all outlet Excel files are in the same folder.")
+    st.error("No Excel files found. Please ensure all outlet files are in the same folder as this script.")
     st.stop()
 
-# Normalize column names
-df.columns = df.columns.str.strip()
-if "Excise Margin (%)" not in df.columns:
-    df["Excise Margin (%)"] = ((df["Total Profit"] / df["Total Sales"]) * 100).round(2)
-
-# ======================
+# =====================================================
 # SIDEBAR FILTERS
-# ======================
+# =====================================================
 st.sidebar.header("🔍 Filters")
 
 # Category Filter
@@ -80,21 +84,14 @@ if selected_category != "All":
     df = df[df["Category"] == selected_category]
 
 # Outlet Filter
-outlets = ["All"] + sorted(df["Outlet"].unique().tolist())
+outlets = ["All"] + sorted(df["Outlet"].dropna().unique().tolist())
 selected_outlet = st.sidebar.selectbox("Select Outlet", outlets)
 if selected_outlet != "All":
     df = df[df["Outlet"] == selected_outlet]
 
 # Margin Filter
-margin_options = [
-    "All",
-    "< 0%",
-    "< 5%",
-    "10–20%",
-    "20–30%",
-    "30%+"
-]
-selected_margin = st.sidebar.selectbox("Select Margin Range", margin_options)
+margin_ranges = ["All", "< 0%", "< 5%", "10–20%", "20–30%", "30%+"]
+selected_margin = st.sidebar.selectbox("Select Margin Range", margin_ranges)
 
 if selected_margin != "All":
     if selected_margin == "< 0%":
@@ -108,45 +105,54 @@ if selected_margin != "All":
     elif selected_margin == "30%+":
         df = df[df["Excise Margin (%)"] >= 30]
 
-# ======================
+# =====================================================
 # SEARCH BAR
-# ======================
-search_term = st.text_input("🔎 Search for an Item:")
+# =====================================================
+search_term = st.text_input("🔎 Search for Item:")
 if search_term:
     df = df[df["Items"].astype(str).str.contains(search_term, case=False, na=False)]
 
-# ======================
-# KEY INSIGHTS (TOP)
-# ======================
+# =====================================================
+# KEY INSIGHTS
+# =====================================================
+st.markdown("### 📈 Key Insights")
+
 total_sales = df["Total Sales"].sum()
 total_profit = df["Total Profit"].sum()
 avg_margin = df["Excise Margin (%)"].mean()
 
-st.markdown("### 📊 Key Insights")
 col1, col2, col3 = st.columns(3)
 col1.metric("Total Sales", f"{total_sales:,.2f}")
 col2.metric("Total Profit", f"{total_profit:,.2f}")
 col3.metric("Average Margin (%)", f"{avg_margin:.2f}%")
 
-# ======================
-# ITEM-LEVEL TABLE
-# ======================
-st.markdown("### 🧾 Item-wise Details")
-st.dataframe(
-    df[["Outlet", "Item Code", "Items", "Category", "Total Sales", "Total Profit", "Excise Margin (%)"]],
-    use_container_width=True
-)
+# =====================================================
+# ITEM-WISE DETAILS TABLE
+# =====================================================
+st.markdown("### 🧾 Item-wise Sales, Profit & Margin (All Outlets)")
+if df.empty:
+    st.warning("No data available for the current filters.")
+else:
+    st.dataframe(
+        df[["Outlet", "Item Code", "Items", "Category", "Total Sales", "Total Profit", "Excise Margin (%)"]],
+        use_container_width=True
+    )
 
-# ======================
+# =====================================================
 # OUTLET-WISE TOTALS TABLE
-# ======================
-st.markdown("### 🏬 Outlet-wise Total Sales, Profit & Avg Margin")
-outlet_summary = (
-    df.groupby("Outlet")[["Total Sales", "Total Profit"]]
-    .sum()
-    .reset_index()
-)
-outlet_summary["Avg Margin (%)"] = (
-    df.groupby("Outlet")["Excise Margin (%)"].mean().values.round(2)
-)
-st.dataframe(outlet_summary, use_container_width=True)
+# =====================================================
+st.markdown("### 🏬 Outlet-wise Total Sales, Profit & Average Margin")
+
+if not df.empty:
+    outlet_summary = (
+        df.groupby("Outlet", as_index=False)
+        .agg({
+            "Total Sales": "sum",
+            "Total Profit": "sum",
+            "Excise Margin (%)": "mean"
+        })
+        .round(2)
+    )
+    st.dataframe(outlet_summary, use_container_width=True)
+else:
+    st.info("No outlet totals available for current selection.")
