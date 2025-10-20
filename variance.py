@@ -18,7 +18,7 @@ OUTLET_FILES = {
     "Jais": "jais oct.Xlsx",
     "Sabah": "sabah oct.Xlsx",
     "Sahat": "sahat oct.Xlsx",
-    "Shams salem": "shams HM oct.Xlsx",
+    "Shams salem": "shams salem oct.Xlsx",
     "Shams Liwan": "liwan oct.Xlsx",
     "Superstore": "superstore oct.Xlsx",
     "Tay Tay": "tay tay oct.Xlsx",
