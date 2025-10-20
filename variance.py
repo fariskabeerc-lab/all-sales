@@ -109,7 +109,7 @@ if selected_margin != "All":
 # ===============================
 # SEARCH BAR
 # ===============================
-st.title("📊 Sales & Profit Insights (Oct 2025)")
+st.title("📊 Sales & Profit Insights (Oct 1-18)")
 
 search_term = st.text_input("🔎 Search Item Name", placeholder="Type an item name...")
 if search_term:
