@@ -54,6 +54,8 @@ def load_all_outlet_data():
             df = pd.read_excel(file)
             df["Outlet"] = outlet
             all_data.append(df)
+        else:
+            st.warning(f"⚠️ File not found: {file}")
     return pd.concat(all_data, ignore_index=True) if all_data else pd.DataFrame()
 
 df = load_all_outlet_data()
@@ -66,8 +68,8 @@ for col in ["Total Sales", "Total Profit"]:
     if col in df.columns:
         df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
-df["Margin %"] = df["Total Profit"] / df["Total Sales"] * 100
-df["Margin %"] = df["Margin %"].fillna(0).round(2)
+# Compute margin %
+df["Margin %"] = (df["Total Profit"] / df["Total Sales"] * 100).fillna(0).round(2)
 
 # ===============================
 # SIDEBAR FILTERS
@@ -105,12 +107,11 @@ if selected_margin != "All":
         filtered_df = filtered_df[filtered_df["Margin %"] >= 30]
 
 # ===============================
-# SEARCH BAR (NORMAL SCROLLABLE)
+# SEARCH BAR
 # ===============================
 st.title("📊 Sales & Profit Insights (Oct 2025)")
 
 search_term = st.text_input("🔎 Search Item Name", placeholder="Type an item name...")
-
 if search_term:
     filtered_df = filtered_df[filtered_df["Items"].str.contains(search_term, case=False, na=False)]
 
@@ -120,7 +121,7 @@ if search_term:
 if not filtered_df.empty:
     total_sales = filtered_df["Total Sales"].sum()
     total_profit = filtered_df["Total Profit"].sum()
-    avg_margin = filtered_df["Margin %"].mean()
+    avg_margin = (total_profit / total_sales * 100) if total_sales > 0 else 0
 
     st.subheader("📈 Key Insights")
     c1, c2, c3 = st.columns(3)
@@ -152,10 +153,13 @@ st.subheader("🏪 Outlet-wise Total Sales, Profit & Avg Margin")
 if not filtered_df.empty:
     outlet_summary = (
         filtered_df.groupby("Outlet")
-        .agg({"Total Sales": "sum", "Total Profit": "sum", "Margin %": "mean"})
+        .agg({"Total Sales": "sum", "Total Profit": "sum"})
         .reset_index()
-        .sort_values("Total Sales", ascending=False)
     )
+    # Correct avg margin using total profit/total sales
+    outlet_summary["Avg Margin %"] = (outlet_summary["Total Profit"] / outlet_summary["Total Sales"] * 100).round(2)
+    outlet_summary = outlet_summary.sort_values("Total Sales", ascending=False)
+
     st.dataframe(outlet_summary, use_container_width=True, height=350)
 else:
     st.info("No outlet data to display.")
