@@ -5,9 +5,8 @@ import os
 # ===============================
 # CONFIGURATION
 # ===============================
-st.set_page_config(page_title="🔒 Sales & Profit Dashboard", layout="wide")
+st.set_page_config(page_title="Sales & Profit Dashboard", layout="wide")
 
-# --- Outlet Mapping ---
 OUTLET_FILES = {
     "Hilal": "Hilal oct.Xlsx",
     "Safa Super": "Safa super oct.Xlsx",
@@ -32,7 +31,8 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
-    password = st.text_input("🔑 Enter Password to Access Dashboard", type="password")
+    st.title("🔒 Sales & Profit Dashboard")
+    password = st.text_input("Enter Password to Continue", type="password")
     if st.button("Login"):
         if password == "123123":
             st.session_state.authenticated = True
@@ -103,27 +103,11 @@ if selected_margin != "All":
         filtered_df = filtered_df[filtered_df["Margin %"] >= 30]
 
 # ===============================
-# SEARCH BAR (Sticky on top)
+# SEARCH BAR (NORMAL SCROLLABLE)
 # ===============================
-st.markdown("""
-    <style>
-    div[data-testid="stToolbar"] {visibility: hidden;}
-    .search-bar {
-        position: fixed;
-        top: 0;
-        background-color: white;
-        width: 100%;
-        z-index: 1000;
-        padding: 15px 0;
-        border-bottom: 1px solid #ddd;
-    }
-    .stApp { margin-top: 80px; }
-    </style>
-""", unsafe_allow_html=True)
+st.title("📊 Sales & Profit Insights (Oct 2025)")
 
-st.markdown('<div class="search-bar">', unsafe_allow_html=True)
 search_term = st.text_input("🔎 Search Item Name", placeholder="Type an item name...")
-st.markdown('</div>', unsafe_allow_html=True)
 
 if search_term:
     filtered_df = filtered_df[filtered_df["Items"].str.contains(search_term, case=False, na=False)]
@@ -136,9 +120,10 @@ if not filtered_df.empty:
     total_profit = filtered_df["Total Profit"].sum()
     avg_margin = filtered_df["Margin %"].mean()
 
+    st.subheader("📈 Key Insights")
     c1, c2, c3 = st.columns(3)
     c1.metric("💰 Total Sales", f"{total_sales:,.2f}")
-    c2.metric("📈 Total Profit", f"{total_profit:,.2f}")
+    c2.metric("📊 Total Profit", f"{total_profit:,.2f}")
     c3.metric("⚙️ Avg. Margin %", f"{avg_margin:.2f}%")
 else:
     st.warning("No data found for the selected filters or search term.")
@@ -154,7 +139,7 @@ if not filtered_df.empty:
         .sort_values(by="Margin %", ascending=True)
         .reset_index(drop=True),
         use_container_width=True,
-        height=400
+        height=450
     )
 
 # ===============================
@@ -169,6 +154,6 @@ if not filtered_df.empty:
         .reset_index()
         .sort_values("Total Sales", ascending=False)
     )
-    st.dataframe(outlet_summary, use_container_width=True, height=300)
+    st.dataframe(outlet_summary, use_container_width=True, height=350)
 else:
     st.info("No outlet data to display.")
