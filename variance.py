@@ -25,7 +25,6 @@ if not st.session_state.authenticated:
             st.rerun()
         else:
             st.error("❌ Incorrect password. Try again.")
-
     st.stop()
 
 # ==========================
@@ -75,10 +74,21 @@ def load_all_data():
 data_dict = load_all_data()
 
 # ==========================
-# Search Item
+# Sidebar Filters
 # ==========================
-st.subheader("🔍 Search Item Across Outlets")
-search_query = st.text_input("Enter Item Name or Item Code (leave blank to view all):")
+st.sidebar.header("🔎 Filters")
+
+# Category options (from all files)
+all_categories = set()
+for df in data_dict.values():
+    if not df.empty and "Category" in df.columns:
+        all_categories.update(df["Category"].dropna().unique().tolist())
+
+category_options = ["All Categories"] + sorted(all_categories)
+selected_category = st.sidebar.selectbox("Select Category", category_options)
+
+# Search input
+search_query = st.sidebar.text_input("Search Item Name or Code (optional):")
 
 # ==========================
 # Prepare Results
@@ -89,14 +99,16 @@ for outlet, df in data_dict.items():
     if df.empty:
         continue
 
-    # Apply search filter if any
-    if search_query:
-        df_filtered = df[df.astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)]
-    else:
-        df_filtered = df
+    # Filter by category
+    if selected_category != "All Categories" and "Category" in df.columns:
+        df = df[df["Category"] == selected_category]
 
-    if not df_filtered.empty:
-        for _, row in df_filtered.iterrows():
+    # Filter by search
+    if search_query:
+        df = df[df.astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)]
+
+    if not df.empty:
+        for _, row in df.iterrows():
             results.append({
                 "Outlet": outlet,
                 "Item Code": row.get("Item Code", ""),
@@ -107,13 +119,13 @@ for outlet, df in data_dict.items():
                 "Excise Margin (%)": pd.to_numeric(row.get("Excise Margin (%)", 0), errors="coerce")
             })
 
-# Convert to DataFrame
 result_df = pd.DataFrame(results)
 
 # ==========================
-# Key Insights (Always at Top)
+# Key Insights
 # ==========================
 st.subheader("📈 Key Insights")
+
 if not result_df.empty:
     total_sales = result_df["Total Sales"].sum()
     total_profit = result_df["Total Profit"].sum()
@@ -129,16 +141,16 @@ c2.metric("📊 Total Profit", f"{total_profit:,.2f}")
 c3.metric("📈 Average Margin (%)", f"{avg_margin:.2f}%")
 
 # ==========================
-# Item-wise Table
+# Item-wise Details
 # ==========================
 st.subheader("📋 Item-wise Details Across Outlets")
 if not result_df.empty:
     st.dataframe(result_df, use_container_width=True)
 else:
-    st.warning("⚠️ No data found for the current search or files are missing.")
+    st.warning("⚠️ No matching records found.")
 
 # ==========================
-# Outlet-wise Total Table
+# Outlet-wise Summary
 # ==========================
 st.subheader("🏪 Outlet-wise Total Sales, Profit & Avg Margin")
 
@@ -147,16 +159,18 @@ for outlet, df in data_dict.items():
     if df.empty:
         continue
 
+    # Category filter
+    if selected_category != "All Categories" and "Category" in df.columns:
+        df = df[df["Category"] == selected_category]
+
+    # Search filter
     if search_query:
-        df_filtered = df[df.astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)]
-    else:
-        df_filtered = df
+        df = df[df.astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)]
 
-    if not df_filtered.empty:
-        total_sales = pd.to_numeric(df_filtered.get("Total Sales", 0), errors="coerce").sum()
-        total_profit = pd.to_numeric(df_filtered.get("Total Profit", 0), errors="coerce").sum()
-        avg_margin = pd.to_numeric(df_filtered.get("Excise Margin (%)", 0), errors="coerce").mean()
-
+    if not df.empty:
+        total_sales = pd.to_numeric(df.get("Total Sales", 0), errors="coerce").sum()
+        total_profit = pd.to_numeric(df.get("Total Profit", 0), errors="coerce").sum()
+        avg_margin = pd.to_numeric(df.get("Excise Margin (%)", 0), errors="coerce").mean()
         outlet_summary.append({
             "Outlet": outlet,
             "Total Sales": total_sales,
