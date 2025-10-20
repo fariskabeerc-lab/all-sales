@@ -22,7 +22,8 @@ OUTLET_FILES = {
     "Shams Liwan": "liwan oct.Xlsx",
     "Superstore": "superstore oct.Xlsx",
     "Tay Tay": "tay tay oct.Xlsx",
-    "Safa oudmehta": "oudmehta oct.Xlsx"
+    "Safa oudmehta": "oudmehta oct.Xlsx",
+    "Port saeed": "Port saeed oct.Xlsx"
 }
 
 # ===============================
