@@ -80,6 +80,9 @@ st.sidebar.header("🔍 Filters")
 categories = ["All"] + sorted(df["Category"].unique().tolist())
 selected_category = st.sidebar.selectbox("Select Category", categories)
 
+# Exclude Categories Filter (multi-select)
+exclude_categories = st.sidebar.multiselect("Exclude Categories", options=df["Category"].unique())
+
 # Outlet Filter
 outlets = ["All"] + sorted(df["Outlet"].unique().tolist())
 selected_outlet = st.sidebar.selectbox("Select Outlet", outlets)
@@ -88,12 +91,24 @@ selected_outlet = st.sidebar.selectbox("Select Outlet", outlets)
 margin_filters = ["All", "< 0", "< 5", "10 - 20", "20 - 30", "30 +"]
 selected_margin = st.sidebar.selectbox("Select Margin Range (%)", margin_filters)
 
-# Apply Filters
+# ===============================
+# APPLY FILTERS
+# ===============================
 filtered_df = df.copy()
+
+# Include Category
 if selected_category != "All":
     filtered_df = filtered_df[filtered_df["Category"] == selected_category]
+
+# Exclude Categories
+if exclude_categories:
+    filtered_df = filtered_df[~filtered_df["Category"].isin(exclude_categories)]
+
+# Outlet
 if selected_outlet != "All":
     filtered_df = filtered_df[filtered_df["Outlet"] == selected_outlet]
+
+# Margin
 if selected_margin != "All":
     if selected_margin == "< 0":
         filtered_df = filtered_df[filtered_df["Margin %"] < 0]
