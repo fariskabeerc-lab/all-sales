@@ -22,7 +22,6 @@ df = load_data()
 # ==============================
 # Preprocess Columns
 # ==============================
-# Identify columns dynamically
 month_cols = [col for col in df.columns if "Total Sales" in col]
 profit_cols = [col for col in df.columns if "Total Profit" in col]
 
@@ -33,7 +32,7 @@ for col in month_cols:
     if month not in month_order:
         month_order.append(month)
 
-# Melt data for better filtering
+# Melt data for easier filtering
 sales_melted = df.melt(id_vars=["Category", "outlet"], value_vars=month_cols,
                        var_name="Month", value_name="Sales")
 profit_melted = df.melt(id_vars=["Category", "outlet"], value_vars=profit_cols,
@@ -43,23 +42,19 @@ profit_melted = df.melt(id_vars=["Category", "outlet"], value_vars=profit_cols,
 sales_melted["Month"] = sales_melted["Month"].str.extract(r"(\w+-\d{4})")
 profit_melted["Month"] = profit_melted["Month"].str.extract(r"(\w+-\d{4})")
 
-# Merge
+# Merge sales and profit
 merged_df = pd.merge(sales_melted, profit_melted, on=["Category", "outlet", "Month"])
 
 # ==============================
 # Filters
 # ==============================
 st.sidebar.header("🔍 Filters")
-
-# Category Filter
 categories = ["All"] + sorted(merged_df["Category"].unique().tolist())
 selected_category = st.sidebar.selectbox("Select Category", categories)
 
-# Outlet Filter
 outlets = ["All"] + sorted(merged_df["outlet"].unique().tolist())
 selected_outlet = st.sidebar.selectbox("Select Outlet", outlets)
 
-# Month Filter
 months = ["All"] + month_order
 selected_month = st.sidebar.selectbox("Select Month", months)
 
@@ -100,44 +95,40 @@ if selected_category != "All":
 if selected_month == "All":
     st.markdown("### 📦 Sales Trend by Month")
     
-    monthly_summary = (
-        filtered_df.groupby("Month")[["Sales", "Profit"]].sum().reindex(month_order)
-    )
+    monthly_summary = filtered_df.groupby("Month")[["Sales", "Profit"]].sum().reindex(month_order)
     
-    # Enhanced Line Chart for Sales
+    # Line chart for Sales
     fig = px.line(
         monthly_summary,
         x=monthly_summary.index,
         y="Sales",
         markers=True,
-        title="Total Sales Trend by Month",
-        line_shape="spline",  # smooth curve
+        line_shape="spline",
         color_discrete_sequence=["royalblue"],
         hover_data={"Sales": ":,.2f"},
+        title="Total Sales Trend by Month"
     )
     fig.update_traces(marker=dict(size=10, symbol="circle"), line=dict(width=4))
     fig.update_layout(height=500, xaxis_title="Month", yaxis_title="Total Sales", template="plotly_white", title_x=0.5)
     st.plotly_chart(fig, use_container_width=True)
     
-    st.markdown("### 💹 Profit Trend by Month")
-    
-    # Enhanced Line Chart for Profit
+    # Line chart for Profit
     fig2 = px.line(
         monthly_summary,
         x=monthly_summary.index,
         y="Profit",
         markers=True,
-        title="Total Profit Trend by Month",
         line_shape="spline",
         color_discrete_sequence=["green"],
         hover_data={"Profit": ":,.2f"},
+        title="Total Profit Trend by Month"
     )
     fig2.update_traces(marker=dict(size=10, symbol="diamond"), line=dict(width=4))
     fig2.update_layout(height=500, xaxis_title="Month", yaxis_title="Total Profit", template="plotly_white", title_x=0.5)
     st.plotly_chart(fig2, use_container_width=True)
-    
+
 else:
-    # Single month selected: show category-wise Sales and Profit bar chart
+    # Single month selected: show Category-wise bar chart
     st.markdown(f"### 📊 Category-wise Sales & Profit for {selected_month}")
     category_summary = filtered_df.groupby("Category")[["Sales", "Profit"]].sum().reset_index()
     
@@ -147,8 +138,8 @@ else:
         y=["Sales", "Profit"],
         barmode="group",
         text_auto=True,
-        title=f"Category-wise Sales & Profit ({selected_month})",
-        color_discrete_sequence=["royalblue", "green"]
+        color_discrete_sequence=["royalblue", "green"],
+        title=f"Category-wise Sales & Profit ({selected_month})"
     )
     fig.update_layout(height=500, xaxis_title="Category", yaxis_title="Amount", template="plotly_white", title_x=0.5)
     st.plotly_chart(fig, use_container_width=True)
