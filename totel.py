@@ -119,53 +119,46 @@ if selected_month == "All":
     st.plotly_chart(fig2, use_container_width=True)
 
 else:
-    # Vertical bar chart for a single month
-    st.markdown(f"### 📊 Category-wise Sales & Profit for {selected_month}")
+    # Vertical bar chart for single month with gaps and professional style
+    st.subheader(f"📊 Category-wise Sales & Profit for {selected_month}")
+
     category_summary = filtered_df.groupby("Category")[["Sales", "Profit"]].sum().reset_index()
-    categories_list = category_summary["Category"].tolist()
-    sales_values = category_summary["Sales"].tolist()
-    profit_values = category_summary["Profit"].tolist()
-    max_value = max(max(sales_values), max(profit_values)) * 1.2
+    max_value = max(category_summary["Sales"].max(), category_summary["Profit"].max()) * 1.2
 
     fig_bar = go.Figure()
+
     fig_bar.add_trace(go.Bar(
+        x=category_summary["Category"],
+        y=category_summary["Sales"],
         name="Sales",
-        x=categories_list,
-        y=[0]*len(sales_values),
+        text=category_summary["Sales"],
+        textposition="outside",
         marker_color="royalblue",
-        text=[0]*len(sales_values),
-        textposition="outside"
+        hovertemplate="<b>%{x}</b><br>Sales: %{y:,.0f}<extra></extra>"
     ))
+
     fig_bar.add_trace(go.Bar(
+        x=category_summary["Category"],
+        y=category_summary["Profit"],
         name="Profit",
-        x=categories_list,
-        y=[0]*len(profit_values),
+        text=category_summary["Profit"],
+        textposition="outside",
         marker_color="green",
-        text=[0]*len(profit_values),
-        textposition="outside"
+        hovertemplate="<b>%{x}</b><br>Profit: %{y:,.0f}<extra></extra>"
     ))
 
     fig_bar.update_layout(
         barmode="group",
-        bargap=0.3,
-        xaxis=dict(title="Category"),
-        yaxis=dict(title="Amount", range=[0, max_value]),
+        bargap=0.3,  # gap between bars
+        xaxis=dict(title="Category", tickfont=dict(size=12)),
+        yaxis=dict(title="Amount", range=[0, max_value], tickfont=dict(size=12)),
+        height=650,
         template="plotly_white",
-        height=600
+        margin=dict(l=50, r=50, t=50, b=100),
+        legend=dict(font=dict(size=12))
     )
 
-    chart = st.plotly_chart(fig_bar, use_container_width=True)
-
-    # Animate bars fast
-    steps = 15
-    delay = 0.02
-    for i in range(1, steps + 1):
-        fig_bar.data[0].y = [v * i / steps for v in sales_values]
-        fig_bar.data[0].text = [f"{v * i / steps:,.0f}" for v in sales_values]
-        fig_bar.data[1].y = [v * i / steps for v in profit_values]
-        fig_bar.data[1].text = [f"{v * i / steps:,.0f}" for v in profit_values]
-        chart.plotly_chart(fig_bar, use_container_width=True)
-        time.sleep(delay)
+    st.plotly_chart(fig_bar, use_container_width=True)
 
 # ==============================
 # Data Table
