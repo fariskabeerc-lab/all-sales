@@ -127,7 +127,10 @@ else:
 
     fig_bar = go.Figure()
 
-    # Sales bars
+    # Both bars use the same customdata to show Sales and Profit
+    custom_hover = category_summary[["Sales", "Profit"]].values
+
+    # Sales bar
     fig_bar.add_trace(go.Bar(
         y=category_summary["Category"],
         x=category_summary["Sales"],
@@ -136,11 +139,12 @@ else:
         text=category_summary["Sales"],
         textposition="outside",
         marker_color="red",
-        marker_line_width=0,  # remove border
-        hovertemplate="<b>%{y}</b><br>Sales: %{x:,.0f}<extra></extra>"
+        marker_line_width=0,
+        hovertemplate="<b>%{y}</b><br>Sales: %{x:,.0f}<br>Profit: %{customdata[1]:,.0f}<extra></extra>",
+        customdata=custom_hover
     ))
 
-    # Profit bars
+    # Profit bar
     fig_bar.add_trace(go.Bar(
         y=category_summary["Category"],
         x=category_summary["Profit"],
@@ -149,8 +153,9 @@ else:
         text=category_summary["Profit"],
         textposition="outside",
         marker_color="green",
-        marker_line_width=0,  # remove border
-        hovertemplate="<b>%{y}</b><br>Profit: %{x:,.0f}<extra></extra>"
+        marker_line_width=0,
+        hovertemplate="<b>%{y}</b><br>Sales: %{customdata[0]:,.0f}<br>Profit: %{x:,.0f}<extra></extra>",
+        customdata=custom_hover
     ))
 
     fig_bar.update_layout(
