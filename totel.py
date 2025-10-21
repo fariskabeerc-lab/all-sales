@@ -73,29 +73,17 @@ total_sales = filtered_df["Sales"].sum()
 total_profit = filtered_df["Profit"].sum()
 profit_margin = (total_profit / total_sales * 100) if total_sales > 0 else 0
 
-col1, col2, col3, col4 = st.columns(4)
+# Always show these three metrics
+col1, col2, col3 = st.columns(3)
 col1.metric("💰 Total Sales", f"{total_sales:,.2f}")
 col2.metric("📈 Total Profit", f"{total_profit:,.2f}")
 col3.metric("📊 Profit Margin (%)", f"{profit_margin:.2f}%")
 
-# Compute Avg Monthly Sales based on selection
-avg_monthly_sales = None
-
-if selected_category != "All" and selected_outlet != "All":
-    # Category + single outlet selected
+# Show Avg Monthly Sales only if category is selected or a single outlet is selected
+if selected_category != "All" or (selected_outlet != "All" and selected_category == "All"):
     avg_monthly_sales = filtered_df.groupby("Month")["Sales"].sum().mean()
-elif selected_category != "All":
-    # Category selected (any outlets)
-    avg_monthly_sales = filtered_df.groupby("Month")["Sales"].sum().mean()
-elif selected_outlet != "All":
-    # Only a single outlet selected
-    avg_monthly_sales = filtered_df.groupby("Month")["Sales"].sum().mean()
-
-# Display Avg Monthly Sales metric
-if avg_monthly_sales is not None:
+    col4 = st.columns(1)[0]  # Single column for Avg metric
     col4.metric("📅 Avg Monthly Sales", f"{avg_monthly_sales:,.2f}")
-else:
-    col4.metric("📅 Avg Monthly Sales", "-")
 
 # ==============================
 # Visualization
