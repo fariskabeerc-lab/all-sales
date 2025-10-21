@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 # Page Setup
 # ==============================
 st.set_page_config(page_title="Sales & Profit Dashboard", layout="wide")
-st.title("📊 Monthly Sales & Profit Dashboard")
+st.title("📊Al Madina : Monthly Sales & Profit")
 
 # ==============================
 # Load Data
