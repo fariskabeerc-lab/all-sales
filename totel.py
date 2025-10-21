@@ -73,17 +73,17 @@ total_sales = filtered_df["Sales"].sum()
 total_profit = filtered_df["Profit"].sum()
 profit_margin = (total_profit / total_sales * 100) if total_sales > 0 else 0
 
-# Always show these three metrics
-col1, col2, col3 = st.columns(3)
+# Initialize columns
+if selected_category != "All" or (selected_outlet != "All" and selected_category == "All"):
+    col1, col2, col3, col4 = st.columns(4)
+    col4.metric("📅 Avg Monthly Sales", f"{filtered_df.groupby('Month')['Sales'].sum().mean():,.2f}")
+else:
+    col1, col2, col3 = st.columns(3)
+
+# Display main metrics
 col1.metric("💰 Total Sales", f"{total_sales:,.2f}")
 col2.metric("📈 Total Profit", f"{total_profit:,.2f}")
 col3.metric("📊 Profit Margin (%)", f"{profit_margin:.2f}%")
-
-# Show Avg Monthly Sales only if category is selected or a single outlet is selected
-if selected_category != "All" or (selected_outlet != "All" and selected_category == "All"):
-    avg_monthly_sales = filtered_df.groupby("Month")["Sales"].sum().mean()
-    col4 = st.columns(1)[0]  # Single column for Avg metric
-    col4.metric("📅 Avg Monthly Sales", f"{avg_monthly_sales:,.2f}")
 
 # ==============================
 # Visualization
