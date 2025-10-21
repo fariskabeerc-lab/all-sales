@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import time
 
 # ==============================
 # Page Setup
@@ -87,7 +86,7 @@ if selected_category != "All":
 # Visualization
 # ==============================
 if selected_month == "All":
-    # Standard line charts
+    # Line charts for all months
     st.markdown("### 📦 Sales Trend by Month")
     monthly_summary = filtered_df.groupby("Month")[["Sales", "Profit"]].sum().reindex(month_order)
 
@@ -119,29 +118,30 @@ if selected_month == "All":
     st.plotly_chart(fig2, use_container_width=True)
 
 else:
-    # Vertical bar chart for single month with gaps and professional style
+    # Vertical category-wise bar chart for single month (reference style)
     st.subheader(f"📊 Category-wise Sales & Profit for {selected_month}")
 
     category_summary = filtered_df.groupby("Category")[["Sales", "Profit"]].sum().reset_index()
-    max_value = max(category_summary["Sales"].max(), category_summary["Profit"].max()) * 1.2
+    top_categories = category_summary.sort_values("Sales", ascending=False)
+    max_value = max(top_categories["Sales"].max(), top_categories["Profit"].max()) * 1.2
 
     fig_bar = go.Figure()
 
     fig_bar.add_trace(go.Bar(
-        x=category_summary["Category"],
-        y=category_summary["Sales"],
+        x=top_categories["Category"],
+        y=top_categories["Sales"],
         name="Sales",
-        text=category_summary["Sales"],
+        text=top_categories["Sales"],
         textposition="outside",
         marker_color="royalblue",
         hovertemplate="<b>%{x}</b><br>Sales: %{y:,.0f}<extra></extra>"
     ))
 
     fig_bar.add_trace(go.Bar(
-        x=category_summary["Category"],
-        y=category_summary["Profit"],
+        x=top_categories["Category"],
+        y=top_categories["Profit"],
         name="Profit",
-        text=category_summary["Profit"],
+        text=top_categories["Profit"],
         textposition="outside",
         marker_color="green",
         hovertemplate="<b>%{x}</b><br>Profit: %{y:,.0f}<extra></extra>"
@@ -149,13 +149,13 @@ else:
 
     fig_bar.update_layout(
         barmode="group",
-        bargap=0.3,  # gap between bars
+        bargap=0.3,
         xaxis=dict(title="Category", tickfont=dict(size=12)),
         yaxis=dict(title="Amount", range=[0, max_value], tickfont=dict(size=12)),
-        height=650,
+        height=850,
         template="plotly_white",
-        margin=dict(l=50, r=50, t=50, b=100),
-        legend=dict(font=dict(size=12))
+        margin=dict(l=220, r=50, t=50, b=100),
+        legend=dict(font=dict(size=12)),
     )
 
     st.plotly_chart(fig_bar, use_container_width=True)
