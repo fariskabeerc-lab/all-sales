@@ -11,7 +11,7 @@ st.title("📊 Monthly Sales & Profit Dashboard (2025)")
 # ================================
 # LOAD EXCEL FILE (CHANGE NAME IF NEEDED)
 # ================================
-FILE_PATH = "salestillsep.xlsx"  # 👈 change to your actual Excel filename
+FILE_PATH = "jan to sep all.xlsx"  # 👈 change to your actual Excel filename
 df = pd.read_excel(FILE_PATH)
 df.columns = df.columns.str.strip()
 
