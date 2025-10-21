@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
-import numpy as np
 import time
 
 # ==============================
@@ -44,7 +44,7 @@ profit_melted["Month"] = profit_melted["Month"].str.extract(r"(\w+-\d{4})")
 merged_df = pd.merge(sales_melted, profit_melted, on=["Category", "outlet", "Month"])
 
 # ==============================
-# Filters
+# Sidebar Filters
 # ==============================
 st.sidebar.header("🔍 Filters")
 categories = ["All"] + sorted(merged_df["Category"].unique().tolist())
@@ -56,6 +56,9 @@ selected_outlet = st.sidebar.selectbox("Select Outlet", outlets)
 months = ["All"] + month_order
 selected_month = st.sidebar.selectbox("Select Month", months)
 
+# ==============================
+# Apply Filters
+# ==============================
 filtered_df = merged_df.copy()
 if selected_category != "All":
     filtered_df = filtered_df[filtered_df["Category"] == selected_category]
@@ -65,7 +68,7 @@ if selected_month != "All":
     filtered_df = filtered_df[filtered_df["Month"] == selected_month]
 
 # ==============================
-# Key Metrics
+# Metrics
 # ==============================
 total_sales = filtered_df["Sales"].sum()
 total_profit = filtered_df["Profit"].sum()
@@ -75,6 +78,7 @@ col1, col2, col3, col4 = st.columns(4)
 col1.metric("💰 Total Sales", f"{total_sales:,.2f}")
 col2.metric("📈 Total Profit", f"{total_profit:,.2f}")
 col3.metric("📊 Profit Margin (%)", f"{profit_margin:.2f}%")
+
 if selected_category != "All":
     avg_monthly_sales = filtered_df.groupby("Month")["Sales"].sum().mean()
     col4.metric("📅 Avg Monthly Sales", f"{avg_monthly_sales:,.2f}")
@@ -82,12 +86,8 @@ if selected_category != "All":
 # ==============================
 # Visualization
 # ==============================
-
-import plotly.graph_objects as go
-import time
-
 if selected_month == "All":
-    # Show line charts for all months
+    # Line charts for all months
     st.markdown("### 📦 Sales & Profit Trend by Month")
 
     monthly_summary = filtered_df.groupby("Month")[["Sales", "Profit"]].sum().reindex(month_order)
@@ -123,7 +123,7 @@ if selected_month == "All":
     st.plotly_chart(fig_profit, use_container_width=True)
 
 else:
-    # Show vertical category-wise bar chart for single month
+    # Animated vertical category-wise bar chart for a single month
     st.markdown(f"### 📊 Category-wise Sales & Profit for {selected_month}")
 
     category_summary = filtered_df.groupby("Category")[["Sales", "Profit"]].sum().reset_index()
@@ -149,10 +149,16 @@ else:
     chart = st.plotly_chart(fig_bar, use_container_width=True)
 
     # Animate bars faster
-    steps = 15  # fewer steps for faster animation
-    delay = 0.03  # shorter delay
+    steps = 15
+    delay = 0.02  # faster
     for i in range(1, steps + 1):
         fig_bar.data[0].x = [v * i / steps for v in sales_values]
         fig_bar.data[1].x = [v * i / steps for v in profit_values]
         chart.plotly_chart(fig_bar, use_container_width=True)
         time.sleep(delay)
+
+# ==============================
+# Data Table
+# ==============================
+st.markdown("### 📋 Filtered Data")
+st.dataframe(filtered_df, use_container_width=True)
