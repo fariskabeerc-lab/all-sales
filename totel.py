@@ -95,49 +95,63 @@ if selected_category != "All":
     col4.metric("📅 Avg Monthly Sales", f"{avg_monthly_sales:,.2f}")
 
 # ==============================
-# Visualization (Line Charts)
+# Visualization
 # ==============================
-st.markdown("### 📦 Sales Trend by Month")
-
-monthly_summary = (
-    filtered_df.groupby("Month")[["Sales", "Profit"]].sum().reindex(month_order)
-)
-
-fig = px.line(
-    monthly_summary,
-    x=monthly_summary.index,
-    y="Sales",
-    markers=True,
-    title="Total Sales Trend by Month",
-)
-fig.update_traces(line=dict(color="royalblue", width=4), marker=dict(size=10))
-fig.update_layout(
-    height=500,
-    xaxis_title="Month",
-    yaxis_title="Total Sales",
-    template="plotly_white",
-    title_x=0.5,
-)
-st.plotly_chart(fig, use_container_width=True)
-
-st.markdown("### 💹 Profit Trend by Month")
-
-fig2 = px.line(
-    monthly_summary,
-    x=monthly_summary.index,
-    y="Profit",
-    markers=True,
-    title="Total Profit Trend by Month",
-)
-fig2.update_traces(line=dict(color="green", width=4), marker=dict(size=10))
-fig2.update_layout(
-    height=500,
-    xaxis_title="Month",
-    yaxis_title="Total Profit",
-    template="plotly_white",
-    title_x=0.5,
-)
-st.plotly_chart(fig2, use_container_width=True)
+if selected_month == "All":
+    st.markdown("### 📦 Sales Trend by Month")
+    
+    monthly_summary = (
+        filtered_df.groupby("Month")[["Sales", "Profit"]].sum().reindex(month_order)
+    )
+    
+    # Enhanced Line Chart for Sales
+    fig = px.line(
+        monthly_summary,
+        x=monthly_summary.index,
+        y="Sales",
+        markers=True,
+        title="Total Sales Trend by Month",
+        line_shape="spline",  # smooth curve
+        color_discrete_sequence=["royalblue"],
+        hover_data={"Sales": ":,.2f"},
+    )
+    fig.update_traces(marker=dict(size=10, symbol="circle"), line=dict(width=4))
+    fig.update_layout(height=500, xaxis_title="Month", yaxis_title="Total Sales", template="plotly_white", title_x=0.5)
+    st.plotly_chart(fig, use_container_width=True)
+    
+    st.markdown("### 💹 Profit Trend by Month")
+    
+    # Enhanced Line Chart for Profit
+    fig2 = px.line(
+        monthly_summary,
+        x=monthly_summary.index,
+        y="Profit",
+        markers=True,
+        title="Total Profit Trend by Month",
+        line_shape="spline",
+        color_discrete_sequence=["green"],
+        hover_data={"Profit": ":,.2f"},
+    )
+    fig2.update_traces(marker=dict(size=10, symbol="diamond"), line=dict(width=4))
+    fig2.update_layout(height=500, xaxis_title="Month", yaxis_title="Total Profit", template="plotly_white", title_x=0.5)
+    st.plotly_chart(fig2, use_container_width=True)
+    
+else:
+    # Single month selected: show category-wise Sales and Profit bar chart
+    st.markdown(f"### 📊 Category-wise Sales & Profit for {selected_month}")
+    category_summary = filtered_df.groupby("Category")[["Sales", "Profit"]].sum().reset_index()
+    
+    fig = px.bar(
+        category_summary,
+        x="Category",
+        y=["Sales", "Profit"],
+        barmode="group",
+        text_auto=True,
+        title=f"Category-wise Sales & Profit ({selected_month})",
+        color_discrete_sequence=["royalblue", "green"]
+    )
+    fig.update_layout(height=500, xaxis_title="Category", yaxis_title="Amount", template="plotly_white", title_x=0.5)
+    st.plotly_chart(fig, use_container_width=True)
 
 # ==============================
 # Data Table
