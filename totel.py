@@ -237,4 +237,13 @@ if selected_category != "All" and selected_outlet == "All":
         yaxis=dict(title="Outlet", tickfont=dict(size=14), automargin=True),
         height=chart_height_outlet,
         template="plotly_white",
-        margin=dict(l=
+        margin=dict(l=220, r=50, t=50, b=50),
+        legend=dict(font=dict(size=14)),
+    )
+    st.plotly_chart(fig_outlet, use_container_width=True)
+
+# ==============================
+# Data Table
+# ==============================
+st.markdown("### 📋 Filtered Data")
+st.dataframe(filtered_df, use_container_width=True)
