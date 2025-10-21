@@ -82,39 +82,77 @@ if selected_category != "All":
 # ==============================
 # Visualization
 # ==============================
-if selected_month != "All":
-    st.markdown(f"### 📊 Animated Category-wise Sales & Profit for {selected_month}")
+
+import plotly.graph_objects as go
+import time
+
+if selected_month == "All":
+    # Show line charts for all months
+    st.markdown("### 📦 Sales & Profit Trend by Month")
+
+    monthly_summary = filtered_df.groupby("Month")[["Sales", "Profit"]].sum().reindex(month_order)
+
+    # Sales line chart
+    fig_sales = px.line(
+        monthly_summary,
+        x=monthly_summary.index,
+        y="Sales",
+        markers=True,
+        line_shape="spline",
+        color_discrete_sequence=["royalblue"],
+        hover_data={"Sales": ":,.2f"},
+        title="Total Sales Trend by Month"
+    )
+    fig_sales.update_traces(marker=dict(size=10, symbol="circle"), line=dict(width=4))
+    fig_sales.update_layout(height=400, xaxis_title="Month", yaxis_title="Total Sales", template="plotly_white", title_x=0.5)
+    st.plotly_chart(fig_sales, use_container_width=True)
+
+    # Profit line chart
+    fig_profit = px.line(
+        monthly_summary,
+        x=monthly_summary.index,
+        y="Profit",
+        markers=True,
+        line_shape="spline",
+        color_discrete_sequence=["green"],
+        hover_data={"Profit": ":,.2f"},
+        title="Total Profit Trend by Month"
+    )
+    fig_profit.update_traces(marker=dict(size=10, symbol="diamond"), line=dict(width=4))
+    fig_profit.update_layout(height=400, xaxis_title="Month", yaxis_title="Total Profit", template="plotly_white", title_x=0.5)
+    st.plotly_chart(fig_profit, use_container_width=True)
+
+else:
+    # Show vertical category-wise bar chart for single month
+    st.markdown(f"### 📊 Category-wise Sales & Profit for {selected_month}")
+
     category_summary = filtered_df.groupby("Category")[["Sales", "Profit"]].sum().reset_index()
-    
     categories_list = category_summary["Category"].tolist()
     sales_values = category_summary["Sales"].tolist()
     profit_values = category_summary["Profit"].tolist()
-    
-    # Set outer constant y-axis
-    max_y = max(max(sales_values), max(profit_values)) * 1.2
-    
-    fig = go.Figure()
-    
-    # Initialize bars with zero height
-    fig.add_trace(go.Bar(name="Sales", x=categories_list, y=[0]*len(sales_values), marker_color="royalblue"))
-    fig.add_trace(go.Bar(name="Profit", x=categories_list, y=[0]*len(profit_values), marker_color="green"))
-    
-    fig.update_layout(
+    max_value = max(max(sales_values), max(profit_values)) * 1.2
+
+    fig_bar = go.Figure()
+    fig_bar.add_trace(go.Bar(name="Sales", y=categories_list, x=[0]*len(sales_values),
+                             orientation='h', marker_color="royalblue"))
+    fig_bar.add_trace(go.Bar(name="Profit", y=categories_list, x=[0]*len(profit_values),
+                             orientation='h', marker_color="green"))
+
+    fig_bar.update_layout(
         barmode="group",
-        xaxis_title="Category",
-        yaxis_title="Amount",
-        yaxis=dict(range=[0, max_y]),
+        xaxis=dict(title="Amount", range=[0, max_value]),
+        yaxis=dict(title="Category", autorange="reversed"),
         template="plotly_white",
-        height=600,
+        height=600
     )
-    
-    # Animate bars by gradually increasing height
-    chart = st.plotly_chart(fig, use_container_width=True)
-    steps = 30  # number of animation steps
+
+    chart = st.plotly_chart(fig_bar, use_container_width=True)
+
+    # Animate bars faster
+    steps = 15  # fewer steps for faster animation
+    delay = 0.03  # shorter delay
     for i in range(1, steps + 1):
-        new_sales = [v * i/steps for v in sales_values]
-        new_profit = [v * i/steps for v in profit_values]
-        fig.data[0].y = new_sales
-        fig.data[1].y = new_profit
-        chart.plotly_chart(fig, use_container_width=True)
-        time.sleep(0.05)  # small delay to simulate movement
+        fig_bar.data[0].x = [v * i / steps for v in sales_values]
+        fig_bar.data[1].x = [v * i / steps for v in profit_values]
+        chart.plotly_chart(fig_bar, use_container_width=True)
+        time.sleep(delay)
