@@ -2,37 +2,36 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# ================================
+# ============================================
 # PAGE CONFIG
-# ================================
-st.set_page_config(page_title="Sales & Profit Dashboard", layout="wide")
-st.title("📊 Monthly Sales & Profit Dashboard (2025)")
+# ============================================
+st.set_page_config(page_title="📊 Monthly Sales Dashboard", layout="wide")
 
-# ================================
-# LOAD EXCEL FILE (CHANGE NAME IF NEEDED)
-# ================================
-FILE_PATH = "jan to sep all.xlsx"  # 👈 change to your actual Excel filename
+# ============================================
+# LOAD DATA
+# ============================================
+FILE_PATH = "jan to sep all.xlsx"  # change file name if needed
 df = pd.read_excel(FILE_PATH)
-df.columns = df.columns.str.strip()
 
-# ================================
-# CLEANUP & TRANSFORM
-# ================================
-months = [
-    "Jan-2025", "Feb-2025", "Mar-2025", "Apr-2025", "May-2025",
-    "Jun-2025", "Jul-2025", "Aug-2025", "Sep-2025"
+# ============================================
+# DATA CLEANING & TRANSFORMATION
+# ============================================
+month_order = [
+    "Jan-2025", "Feb-2025", "Mar-2025", "Apr-2025",
+    "May-2025", "Jun-2025", "Jul-2025", "Aug-2025", "Sep-2025"
 ]
 
-sales_cols = [f"{m} Total Sales" for m in months if f"{m} Total Sales" in df.columns]
-profit_cols = [f"{m} Total Profit" for m in months if f"{m} Total Profit" in df.columns]
+# Melt the dataframe for visualization
+sales_cols = [f"{m} Total Sales" for m in month_order]
+profit_cols = [f"{m} Total Profit" for m in month_order]
 
-# Convert wide to long format
 melted_sales = df.melt(
     id_vars=["Category", "outlet"],
     value_vars=sales_cols,
     var_name="Month",
     value_name="Total Sales"
 )
+
 melted_profit = df.melt(
     id_vars=["Category", "outlet"],
     value_vars=profit_cols,
@@ -40,97 +39,113 @@ melted_profit = df.melt(
     value_name="Total Profit"
 )
 
-# Merge both
-long_df = pd.merge(melted_sales, melted_profit, on=["Category", "outlet", "Month"], how="left")
-long_df["Month"] = long_df["Month"].str.replace(" Total Sales", "", regex=False)
+# Merge sales and profit
+merged_df = pd.merge(melted_sales, melted_profit, on=["Category", "outlet", "Month"])
 
-# ================================
-# TOTAL SUMMARY
-# ================================
-st.subheader("🌍 Overall Performance Summary")
+# Extract month names correctly
+merged_df["Month"] = merged_df["Month"].str.replace(" Total Sales", "")
+merged_df["Month"] = pd.Categorical(merged_df["Month"], categories=month_order, ordered=True)
 
-total_sales = long_df["Total Sales"].sum()
-total_profit = long_df["Total Profit"].sum()
-avg_margin = (total_profit / total_sales * 100) if total_sales != 0 else 0
-
-col1, col2, col3 = st.columns(3)
-col1.metric("💰 Total Sales (All Outlets)", f"{total_sales:,.2f}")
-col2.metric("📈 Total Profit", f"{total_profit:,.2f}")
-col3.metric("💹 Avg. Profit Margin", f"{avg_margin:.2f}%")
-
-# ================================
+# ============================================
 # FILTERS
-# ================================
-st.divider()
-st.subheader("🎯 Filter Data")
+# ============================================
+st.sidebar.header("🔍 Filters")
 
-outlets = ["All"] + sorted(long_df["outlet"].unique().tolist())
-selected_outlet = st.selectbox("🏪 Select Outlet", outlets)
+# Filter 1: Outlet
+outlet_options = ["All"] + sorted(merged_df["outlet"].unique().tolist())
+selected_outlet = st.sidebar.selectbox("Select Outlet", outlet_options)
 
-categories = sorted(long_df["Category"].unique().tolist())
-selected_category = st.multiselect("📦 Select Category", categories, default=categories)
+# Filter 2: Category
+category_options = ["All"] + sorted(merged_df["Category"].unique().tolist())
+selected_category = st.sidebar.selectbox("Select Category", category_options)
 
-filtered_df = long_df.copy()
+# Filter 3: Month
+month_options = ["All"] + month_order
+selected_month = st.sidebar.selectbox("Select Month", month_options)
+
+# Apply filters one by one
+filtered_df = merged_df.copy()
 if selected_outlet != "All":
     filtered_df = filtered_df[filtered_df["outlet"] == selected_outlet]
-if selected_category:
-    filtered_df = filtered_df[filtered_df["Category"].isin(selected_category)]
+if selected_category != "All":
+    filtered_df = filtered_df[filtered_df["Category"] == selected_category]
+if selected_month != "All":
+    filtered_df = filtered_df[filtered_df["Month"] == selected_month]
 
-# ================================
-# OUTLET-WISE CATEGORY SALES
-# ================================
-st.divider()
-st.subheader("🏷️ Outlet-wise Category Sales")
+# ============================================
+# METRICS
+# ============================================
+total_sales = filtered_df["Total Sales"].sum()
+total_profit = filtered_df["Total Profit"].sum()
 
-outlet_category_sales = (
-    filtered_df.groupby(["outlet", "Category"], as_index=False)["Total Sales"]
-    .sum()
-    .sort_values("Total Sales", ascending=False)
-)
+col1, col2 = st.columns(2)
+col1.metric("💰 Total Sales", f"{total_sales:,.0f}")
+col2.metric("📈 Total Profit", f"{total_profit:,.0f}")
 
-fig = px.bar(
-    outlet_category_sales,
-    x="outlet",
-    y="Total Sales",
-    color="Category",
-    text_auto=".2s",
-    barmode="stack",
-    title="Outlet-wise Category Sales (2025)",
-    color_discrete_sequence=px.colors.qualitative.Safe
-)
-fig.update_layout(height=550, xaxis_title="Outlet", yaxis_title="Total Sales")
+# ============================================
+# CHART
+# ============================================
+st.markdown("### 📊 Sales Overview")
+
+if selected_month == "All":
+    # Vertical bar chart by Month
+    chart_data = (
+        filtered_df.groupby("Month")["Total Sales"].sum().reset_index()
+    )
+    fig = px.bar(
+        chart_data,
+        x="Month",
+        y="Total Sales",
+        text_auto=".2s",
+        title="Total Sales by Month",
+    )
+else:
+    # Vertical bar chart by Category or Outlet
+    if selected_outlet == "All":
+        chart_data = (
+            filtered_df.groupby("outlet")["Total Sales"].sum().reset_index()
+        )
+        fig = px.bar(
+            chart_data,
+            x="outlet",
+            y="Total Sales",
+            text_auto=".2s",
+            title=f"Total Sales by Outlet ({selected_month})",
+        )
+    else:
+        chart_data = (
+            filtered_df.groupby("Category")["Total Sales"].sum().reset_index()
+        )
+        fig = px.bar(
+            chart_data,
+            x="Category",
+            y="Total Sales",
+            text_auto=".2s",
+            title=f"Total Sales by Category ({selected_month})",
+        )
+
+fig.update_traces(textposition='outside')
+fig.update_layout(xaxis_title="", yaxis_title="Total Sales", height=600)
 st.plotly_chart(fig, use_container_width=True)
 
-# ================================
-# MONTHLY TREND (OPTIONAL)
-# ================================
-st.divider()
-st.subheader("📆 Monthly Sales Trend")
+# ============================================
+# KEY INSIGHTS
+# ============================================
+st.markdown("### 🧠 Key Insights")
 
-monthly_sales = (
-    filtered_df.groupby(["Month", "outlet"], as_index=False)["Total Sales"]
-    .sum()
-    .sort_values("Month")
+top_category = (
+    filtered_df.groupby("Category")["Total Sales"].sum().idxmax()
+    if not filtered_df.empty else "N/A"
+)
+top_outlet = (
+    filtered_df.groupby("outlet")["Total Sales"].sum().idxmax()
+    if not filtered_df.empty else "N/A"
+)
+best_month = (
+    filtered_df.groupby("Month")["Total Sales"].sum().idxmax()
+    if not filtered_df.empty else "N/A"
 )
 
-fig2 = px.line(
-    monthly_sales,
-    x="Month",
-    y="Total Sales",
-    color="outlet",
-    markers=True,
-    title="Monthly Sales Trend by Outlet"
-)
-fig2.update_traces(line=dict(width=3))
-fig2.update_layout(height=450)
-st.plotly_chart(fig2, use_container_width=True)
-
-# ================================
-# DATA TABLE
-# ================================
-st.divider()
-st.subheader("📋 Filtered Data")
-st.dataframe(filtered_df.style.format({
-    "Total Sales": "{:,.2f}",
-    "Total Profit": "{:,.2f}"
-}))
+st.write(f"🏆 **Top Category:** {top_category}")
+st.write(f"🏬 **Top Outlet:** {top_outlet}")
+st.write(f"📅 **Best Month:** {best_month}")
