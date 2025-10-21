@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
+import numpy as np
+import time
 
 # ==============================
 # Page Setup
@@ -13,7 +15,7 @@ st.title("📊 Monthly Sales & Profit Dashboard")
 # ==============================
 @st.cache_data
 def load_data():
-    df = pd.read_excel("jan to sep all.xlsx")  # <-- replace with your file name
+    df = pd.read_excel("jan to sep all.xlsx")  # <-- replace with your file
     df.columns = df.columns.str.strip()
     return df
 
@@ -25,24 +27,20 @@ df = load_data()
 month_cols = [col for col in df.columns if "Total Sales" in col]
 profit_cols = [col for col in df.columns if "Total Profit" in col]
 
-# Extract month names in correct order
 month_order = []
 for col in month_cols:
     month = col.split()[0]
     if month not in month_order:
         month_order.append(month)
 
-# Melt data for easier filtering
 sales_melted = df.melt(id_vars=["Category", "outlet"], value_vars=month_cols,
                        var_name="Month", value_name="Sales")
 profit_melted = df.melt(id_vars=["Category", "outlet"], value_vars=profit_cols,
                         var_name="Month", value_name="Profit")
 
-# Clean month names
 sales_melted["Month"] = sales_melted["Month"].str.extract(r"(\w+-\d{4})")
 profit_melted["Month"] = profit_melted["Month"].str.extract(r"(\w+-\d{4})")
 
-# Merge sales and profit
 merged_df = pd.merge(sales_melted, profit_melted, on=["Category", "outlet", "Month"])
 
 # ==============================
@@ -58,22 +56,16 @@ selected_outlet = st.sidebar.selectbox("Select Outlet", outlets)
 months = ["All"] + month_order
 selected_month = st.sidebar.selectbox("Select Month", months)
 
-# ==============================
-# Apply Filters
-# ==============================
 filtered_df = merged_df.copy()
-
 if selected_category != "All":
     filtered_df = filtered_df[filtered_df["Category"] == selected_category]
-
 if selected_outlet != "All":
     filtered_df = filtered_df[filtered_df["outlet"] == selected_outlet]
-
 if selected_month != "All":
     filtered_df = filtered_df[filtered_df["Month"] == selected_month]
 
 # ==============================
-# Key Insights
+# Key Metrics
 # ==============================
 total_sales = filtered_df["Sales"].sum()
 total_profit = filtered_df["Profit"].sum()
@@ -83,8 +75,6 @@ col1, col2, col3, col4 = st.columns(4)
 col1.metric("💰 Total Sales", f"{total_sales:,.2f}")
 col2.metric("📈 Total Profit", f"{total_profit:,.2f}")
 col3.metric("📊 Profit Margin (%)", f"{profit_margin:.2f}%")
-
-# Show average monthly sales if a category is selected
 if selected_category != "All":
     avg_monthly_sales = filtered_df.groupby("Month")["Sales"].sum().mean()
     col4.metric("📅 Avg Monthly Sales", f"{avg_monthly_sales:,.2f}")
@@ -92,60 +82,39 @@ if selected_category != "All":
 # ==============================
 # Visualization
 # ==============================
-if selected_month == "All":
-    st.markdown("### 📦 Sales Trend by Month")
-    
-    monthly_summary = filtered_df.groupby("Month")[["Sales", "Profit"]].sum().reindex(month_order)
-    
-    # Line chart for Sales
-    fig = px.line(
-        monthly_summary,
-        x=monthly_summary.index,
-        y="Sales",
-        markers=True,
-        line_shape="spline",
-        color_discrete_sequence=["royalblue"],
-        hover_data={"Sales": ":,.2f"},
-        title="Total Sales Trend by Month"
-    )
-    fig.update_traces(marker=dict(size=10, symbol="circle"), line=dict(width=4))
-    fig.update_layout(height=500, xaxis_title="Month", yaxis_title="Total Sales", template="plotly_white", title_x=0.5)
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # Line chart for Profit
-    fig2 = px.line(
-        monthly_summary,
-        x=monthly_summary.index,
-        y="Profit",
-        markers=True,
-        line_shape="spline",
-        color_discrete_sequence=["green"],
-        hover_data={"Profit": ":,.2f"},
-        title="Total Profit Trend by Month"
-    )
-    fig2.update_traces(marker=dict(size=10, symbol="diamond"), line=dict(width=4))
-    fig2.update_layout(height=500, xaxis_title="Month", yaxis_title="Total Profit", template="plotly_white", title_x=0.5)
-    st.plotly_chart(fig2, use_container_width=True)
-
-else:
-    # Single month selected: show Category-wise bar chart
-    st.markdown(f"### 📊 Category-wise Sales & Profit for {selected_month}")
+if selected_month != "All":
+    st.markdown(f"### 📊 Animated Category-wise Sales & Profit for {selected_month}")
     category_summary = filtered_df.groupby("Category")[["Sales", "Profit"]].sum().reset_index()
     
-    fig = px.bar(
-        category_summary,
-        x="Category",
-        y=["Sales", "Profit"],
+    categories_list = category_summary["Category"].tolist()
+    sales_values = category_summary["Sales"].tolist()
+    profit_values = category_summary["Profit"].tolist()
+    
+    # Set outer constant y-axis
+    max_y = max(max(sales_values), max(profit_values)) * 1.2
+    
+    fig = go.Figure()
+    
+    # Initialize bars with zero height
+    fig.add_trace(go.Bar(name="Sales", x=categories_list, y=[0]*len(sales_values), marker_color="royalblue"))
+    fig.add_trace(go.Bar(name="Profit", x=categories_list, y=[0]*len(profit_values), marker_color="green"))
+    
+    fig.update_layout(
         barmode="group",
-        text_auto=True,
-        color_discrete_sequence=["royalblue", "green"],
-        title=f"Category-wise Sales & Profit ({selected_month})"
+        xaxis_title="Category",
+        yaxis_title="Amount",
+        yaxis=dict(range=[0, max_y]),
+        template="plotly_white",
+        height=600,
     )
-    fig.update_layout(height=500, xaxis_title="Category", yaxis_title="Amount", template="plotly_white", title_x=0.5)
-    st.plotly_chart(fig, use_container_width=True)
-
-# ==============================
-# Data Table
-# ==============================
-st.markdown("### 📋 Filtered Data")
-st.dataframe(filtered_df, use_container_width=True)
+    
+    # Animate bars by gradually increasing height
+    chart = st.plotly_chart(fig, use_container_width=True)
+    steps = 30  # number of animation steps
+    for i in range(1, steps + 1):
+        new_sales = [v * i/steps for v in sales_values]
+        new_profit = [v * i/steps for v in profit_values]
+        fig.data[0].y = new_sales
+        fig.data[1].y = new_profit
+        chart.plotly_chart(fig, use_container_width=True)
+        time.sleep(0.05)  # small delay to simulate movement
