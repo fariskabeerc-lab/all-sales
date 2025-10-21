@@ -73,20 +73,26 @@ total_sales = filtered_df["Sales"].sum()
 total_profit = filtered_df["Profit"].sum()
 profit_margin = (total_profit / total_sales * 100) if total_sales > 0 else 0
 
-# Initialize columns
-if selected_category != "All" or (selected_outlet != "All" and selected_category == "All"):
+# Determine if Avg Monthly Sales should be shown
+show_avg = (selected_category != "All" or (selected_outlet != "All" and selected_category == "All"))
+
+# Create columns dynamically
+if show_avg:
     col1, col2, col3, col4 = st.columns(4)
-    col4.metric("📅 Avg Monthly Sales", f"{filtered_df.groupby('Month')['Sales'].sum().mean():,.2f}")
 else:
     col1, col2, col3 = st.columns(3)
 
-# Display main metrics
+# Display metrics
 col1.metric("💰 Total Sales", f"{total_sales:,.2f}")
 col2.metric("📈 Total Profit", f"{total_profit:,.2f}")
 col3.metric("📊 Profit Margin (%)", f"{profit_margin:.2f}%")
 
+if show_avg:
+    avg_monthly_sales = filtered_df.groupby("Month")["Sales"].sum().mean()
+    col4.metric("📅 Avg Monthly Sales", f"{avg_monthly_sales:,.2f}")
+
 # ==============================
-# Visualization
+# Visualizations
 # ==============================
 if selected_month == "All":
     # Line charts for all months
@@ -125,15 +131,12 @@ else:
     st.subheader(f"📊 Category-wise Sales & Profit for {selected_month}")
 
     category_summary = filtered_df.groupby("Category")[["Sales", "Profit"]].sum().reset_index()
-    category_summary = category_summary.sort_values("Sales", ascending=True)  # small to large for horizontal
+    category_summary = category_summary.sort_values("Sales", ascending=True)
     max_value = max(category_summary["Sales"].max(), category_summary["Profit"].max()) * 1.2
 
     fig_bar = go.Figure()
-
-    # Both bars use the same customdata to show Sales and Profit
     custom_hover = category_summary[["Sales", "Profit"]].values
 
-    # Sales bar
     fig_bar.add_trace(go.Bar(
         y=category_summary["Category"],
         x=category_summary["Sales"],
@@ -146,8 +149,6 @@ else:
         hovertemplate="<b>%{y}</b><br>Sales: %{x:,.0f}<br>Profit: %{customdata[1]:,.0f}<extra></extra>",
         customdata=custom_hover
     ))
-
-    # Profit bar
     fig_bar.add_trace(go.Bar(
         y=category_summary["Category"],
         x=category_summary["Profit"],
@@ -161,15 +162,79 @@ else:
         customdata=custom_hover
     ))
 
+    # Dynamic height
+    num_categories = category_summary.shape[0]
+    if num_categories <= 3:
+        chart_height = 400
+    elif num_categories <= 6:
+        chart_height = 600
+    else:
+        chart_height = 850
+
     fig_bar.update_layout(
         barmode="group",
         bargap=0.3,
         xaxis=dict(title="Amount", range=[0, max_value], tickfont=dict(size=14)),
         yaxis=dict(title="Category", tickfont=dict(size=14), automargin=True),
-        height=850,
+        height=chart_height,
         template="plotly_white",
         margin=dict(l=220, r=50, t=50, b=50),
         legend=dict(font=dict(size=14)),
     )
-
     st.plotly_chart(fig_bar, use_container_width=True)
+
+# ==============================
+# Outlet-wise sales chart when a category is selected
+# ==============================
+if selected_category != "All" and selected_outlet == "All":
+    st.subheader(f"📊 Outlet-wise Sales for Category: {selected_category}")
+
+    outlet_summary = filtered_df.groupby("outlet")[["Sales", "Profit"]].sum().reset_index()
+    outlet_summary = outlet_summary.sort_values("Sales", ascending=True)
+    max_value_outlet = max(outlet_summary["Sales"].max(), outlet_summary["Profit"].max()) * 1.2
+
+    fig_outlet = go.Figure()
+    custom_hover_outlet = outlet_summary[["Sales", "Profit"]].values
+
+    fig_outlet.add_trace(go.Bar(
+        y=outlet_summary["outlet"],
+        x=outlet_summary["Sales"],
+        name="Sales",
+        orientation="h",
+        text=outlet_summary["Sales"],
+        textposition="outside",
+        marker_color="red",
+        marker_line_width=0,
+        hovertemplate="<b>%{y}</b><br>Sales: %{x:,.0f}<br>Profit: %{customdata[1]:,.0f}<extra></extra>",
+        customdata=custom_hover_outlet
+    ))
+    fig_outlet.add_trace(go.Bar(
+        y=outlet_summary["outlet"],
+        x=outlet_summary["Profit"],
+        name="Profit",
+        orientation="h",
+        text=outlet_summary["Profit"],
+        textposition="outside",
+        marker_color="green",
+        marker_line_width=0,
+        hovertemplate="<b>%{y}</b><br>Sales: %{customdata[0]:,.0f}<br>Profit: %{x:,.0f}<extra></extra>",
+        customdata=custom_hover_outlet
+    ))
+
+    # Dynamic height based on number of outlets
+    num_outlets = outlet_summary.shape[0]
+    if num_outlets <= 3:
+        chart_height_outlet = 400
+    elif num_outlets <= 6:
+        chart_height_outlet = 600
+    else:
+        chart_height_outlet = 850
+
+    fig_outlet.update_layout(
+        barmode="group",
+        bargap=0.3,
+        xaxis=dict(title="Amount", range=[0, max_value_outlet], tickfont=dict(size=14)),
+        yaxis=dict(title="Outlet", tickfont=dict(size=14), automargin=True),
+        height=chart_height_outlet,
+        template="plotly_white",
+        margin=dict(l=
