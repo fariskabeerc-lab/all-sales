@@ -118,50 +118,50 @@ if selected_month == "All":
     st.plotly_chart(fig2, use_container_width=True)
 
 else:
-    # Vertical category-wise bar chart for single month (reference style)
+    # Horizontal category-wise bar chart for single month
     st.subheader(f"📊 Category-wise Sales & Profit for {selected_month}")
 
     category_summary = filtered_df.groupby("Category")[["Sales", "Profit"]].sum().reset_index()
-    top_categories = category_summary.sort_values("Sales", ascending=False)
-    max_value = max(top_categories["Sales"].max(), top_categories["Profit"].max()) * 1.2
+    category_summary = category_summary.sort_values("Sales", ascending=True)  # small to large for horizontal
+    max_value = max(category_summary["Sales"].max(), category_summary["Profit"].max()) * 1.2
 
     fig_bar = go.Figure()
 
+    # Sales bars
     fig_bar.add_trace(go.Bar(
-        x=top_categories["Category"],
-        y=top_categories["Sales"],
+        y=category_summary["Category"],
+        x=category_summary["Sales"],
         name="Sales",
-        text=top_categories["Sales"],
+        orientation="h",
+        text=category_summary["Sales"],
         textposition="outside",
-        marker_color="royalblue",
-        hovertemplate="<b>%{x}</b><br>Sales: %{y:,.0f}<extra></extra>"
+        marker_color="red",
+        marker_line_width=0,  # remove border
+        hovertemplate="<b>%{y}</b><br>Sales: %{x:,.0f}<extra></extra>"
     ))
 
+    # Profit bars
     fig_bar.add_trace(go.Bar(
-        x=top_categories["Category"],
-        y=top_categories["Profit"],
+        y=category_summary["Category"],
+        x=category_summary["Profit"],
         name="Profit",
-        text=top_categories["Profit"],
+        orientation="h",
+        text=category_summary["Profit"],
         textposition="outside",
-        marker_color="green",
-        hovertemplate="<b>%{x}</b><br>Profit: %{y:,.0f}<extra></extra>"
+        marker_color="darkred",
+        marker_line_width=0,  # remove border
+        hovertemplate="<b>%{y}</b><br>Profit: %{x:,.0f}<extra></extra>"
     ))
 
     fig_bar.update_layout(
         barmode="group",
         bargap=0.3,
-        xaxis=dict(title="Category", tickfont=dict(size=12)),
-        yaxis=dict(title="Amount", range=[0, max_value], tickfont=dict(size=12)),
+        xaxis=dict(title="Amount", range=[0, max_value], tickfont=dict(size=14)),
+        yaxis=dict(title="Category", tickfont=dict(size=14), automargin=True),
         height=850,
         template="plotly_white",
-        margin=dict(l=220, r=50, t=50, b=100),
-        legend=dict(font=dict(size=12)),
+        margin=dict(l=220, r=50, t=50, b=50),
+        legend=dict(font=dict(size=14)),
     )
 
     st.plotly_chart(fig_bar, use_container_width=True)
-
-# ==============================
-# Data Table
-# ==============================
-st.markdown("### 📋 Filtered Data")
-st.dataframe(filtered_df, use_container_width=True)
