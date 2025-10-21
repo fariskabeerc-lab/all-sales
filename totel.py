@@ -148,7 +148,7 @@ else:
         orientation="h",
         text=category_summary["Profit"],
         textposition="outside",
-        marker_color="darkred",
+        marker_color="green",
         marker_line_width=0,  # remove border
         hovertemplate="<b>%{y}</b><br>Profit: %{x:,.0f}<extra></extra>"
     ))
