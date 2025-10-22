@@ -203,10 +203,9 @@ if selected_category != "All" and selected_outlet == "All":
     total_outlet_sales = outlet_summary["Sales"].sum()
     outlet_summary["Market Share (%)"] = (outlet_summary["Sales"] / total_outlet_sales * 100).round(2)
 
-    # Create figure
     fig_outlet = go.Figure()
 
-    # Sales Bar
+    # Sales Bar (scaled independently)
     fig_outlet.add_trace(go.Bar(
         y=outlet_summary["outlet"],
         x=outlet_summary["Sales"],
@@ -215,37 +214,34 @@ if selected_category != "All" and selected_outlet == "All":
         marker_color="red",
         text=outlet_summary["Sales"],
         textposition="outside",
-        hovertemplate="<b>%{y}</b><br>Sales: %{x:,.0f}<br>GP%: %{customdata[1]}%<br>Market Share: %{customdata[2]}%<extra></extra>",
+        hovertemplate="<b>%{y}</b><br>Sales: %{x:,.0f}<br>Market Share: %{customdata[2]}%<extra></extra>",
         customdata=outlet_summary[["Sales", "GP%", "Market Share (%)"]].values
     ))
 
-    # GP% Line
-    fig_outlet.add_trace(go.Scatter(
+    # GP% Bar (scaled independently)
+    fig_outlet.add_trace(go.Bar(
         y=outlet_summary["outlet"],
         x=outlet_summary["GP%"],
         name="GP%",
-        mode='lines+markers+text',
+        orientation="h",
+        marker_color="green",
         text=outlet_summary["GP%"].astype(str) + '%',
-        textposition="top center",
-        line=dict(color='green', width=3),
-        marker=dict(size=10),
-        hovertemplate="<b>%{y}</b><br>GP%: %{x}%<extra></extra>"
+        textposition="outside",
+        hovertemplate="<b>%{y}</b><br>GP%: %{x}%<extra></extra>",
+        customdata=outlet_summary[["Sales", "GP%", "Market Share (%)"]].values
     ))
 
-    # Dynamic height based on number of outlets
+    # Dynamic height
     num_outlets = outlet_summary.shape[0]
-    if num_outlets <= 3:
-        chart_height_outlet = 400
-    elif num_outlets <= 6:
-        chart_height_outlet = 600
-    else:
-        chart_height_outlet = 850
+    chart_height = 400 if num_outlets <= 3 else 600 if num_outlets <= 6 else 850
 
     fig_outlet.update_layout(
-        height=chart_height_outlet,
+        barmode='group',
+        height=chart_height,
         template='plotly_white',
         margin=dict(l=220, r=50, t=50, b=50),
-        xaxis=dict(title='Sales / GP%'),
+        xaxis=dict(showgrid=False, showticklabels=False, title=''),  # hide axis
+        xaxis2=dict(showgrid=False, showticklabels=False, title=''),  # second axis hidden
         yaxis=dict(title='Outlet', automargin=True),
         legend=dict(font=dict(size=14))
     )
