@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
-from github import Github
-import io
+from datetime import date
 
 # ==============================
 # PAGE CONFIG
@@ -10,21 +8,11 @@ import io
 st.set_page_config(page_title="Outlet Product Dashboard", layout="wide")
 
 # ==============================
-# GITHUB CONFIG
-# ==============================
-GITHUB_TOKEN = "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"  # Replace with your token
-REPO_NAME = "sickmansickmansickman/reports"             # Replace with your repo
-SUBMISSION_FOLDER = "submit"            # Folder in GitHub to store files
-
-g = Github(GITHUB_TOKEN)
-repo = g.get_repo(REPO_NAME)
-
-# ==============================
 # OUTLET LOGIN
 # ==============================
 users = {
-    "safa": "123123",
-    "fida": "12341234",
+    "Outlet1": "pass1",
+    "Outlet2": "pass2",
     "Outlet3": "pass3",
     "Outlet4": "pass4",
     "Outlet5": "pass5",
@@ -81,9 +69,12 @@ else:
         submitted = st.form_submit_button("Submit")
         if submitted:
             st.success("✅ Data submitted successfully!")
+            
+            # Save data in session state for demo
+            if "submitted_data" not in st.session_state:
+                st.session_state.submitted_data = []
 
-            # Create dataframe
-            data = {
+            st.session_state.submitted_data.append({
                 "Outlet": st.session_state.user,
                 "Form Type": form_type,
                 "Barcode": barcode,
@@ -94,36 +85,14 @@ else:
                 "Expiry Date": expiry,
                 "Supplier": supplier,
                 "Remarks": remarks
-            }
-            df = pd.DataFrame([data])
-
-            # Save to session state for demo dashboard
-            if "submitted_data" not in st.session_state:
-                st.session_state.submitted_data = []
-            st.session_state.submitted_data.append(data)
-
-            # ==============================
-            # Push to GitHub
-            # ==============================
-            csv_buffer = io.StringIO()
-            df.to_csv(csv_buffer, index=False)
-
-            # Create a filename with Outlet + Date + Time
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            file_name = f"{SUBMISSION_FOLDER}/{st.session_state.user}_{timestamp}.csv"
-
-            try:
-                repo.create_file(file_name, f"New submission from {st.session_state.user}", csv_buffer.getvalue())
-                st.success(f"Data also pushed to GitHub as `{file_name}`")
-            except Exception as e:
-                st.error(f"GitHub submission failed: {e}")
+            })
 
     # ==============================
     # Show Submitted Data (Demo Dashboard)
     # ==============================
     st.subheader("📊 Submitted Data Overview")
     if "submitted_data" in st.session_state and st.session_state.submitted_data:
-        df_display = pd.DataFrame(st.session_state.submitted_data)
-        st.dataframe(df_display)
+        df = pd.DataFrame(st.session_state.submitted_data)
+        st.dataframe(df)
     else:
         st.info("No data submitted yet.")
