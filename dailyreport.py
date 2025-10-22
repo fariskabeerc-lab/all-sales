@@ -10,13 +10,11 @@ st.set_page_config(page_title="Outlet Management Dashboard", layout="wide")
 # ==============================
 # USERS SETUP
 # ==============================
-# Managers credentials
 managers = {
     "salman": "12345",
     "manager2": "managerpass2",
 }
 
-# Outlets credentials
 outlets = {
     "safa": "123123",
     "fida": "12341234",
@@ -24,7 +22,6 @@ outlets = {
     "outlet4": "pass4",
 }
 
-# Merge all users for login
 all_users = {**managers, **outlets}
 
 # ==============================
@@ -34,7 +31,7 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 if "user_role" not in st.session_state:
-    st.session_state.user_role = None  # "manager" or "outlet"
+    st.session_state.user_role = None
 
 if "product_data" not in st.session_state:
     st.session_state.product_data = []
@@ -57,18 +54,21 @@ if not st.session_state.authenticated:
             st.success(f"Welcome {username}!")
         else:
             st.error("Invalid username or password")
+
+# ==============================
+# DASHBOARD
+# ==============================
 else:
     st.title(f"🏬 Welcome {st.session_state.user} ({st.session_state.user_role})")
 
-    # ==============================
-    # MANAGER VIEW
-    # ==============================
-    if st.session_state.user_role == "manager":
-        st.subheader("📋 Product Form")
+    # ------------------------------
+    # OUTLET VIEW - Product / Expiry / Damage Form
+    # ------------------------------
+    if st.session_state.user_role == "outlet":
+        st.subheader("📋 Product / Expiry / Damage Form")
         form_type = st.selectbox("Select Form Type", ["Near Expiry", "Damaged", "Other"])
 
-        # Product form
-        with st.form("product_form", clear_on_submit=True):
+        with st.form("outlet_form", clear_on_submit=True):
             barcode = st.text_input("Barcode")
             product_name = st.text_input("Product Name")
             qty = st.number_input("Qty [PCS]", min_value=0)
@@ -78,7 +78,7 @@ else:
             supplier = st.text_input("Supplier Name")
             remarks = st.text_area("Remarks [if any]")
 
-            submitted = st.form_submit_button("Add Product Entry")
+            submitted = st.form_submit_button("Submit")
             if submitted:
                 st.session_state.product_data.append({
                     "Outlet": st.session_state.user,
@@ -92,19 +92,18 @@ else:
                     "Supplier": supplier,
                     "Remarks": remarks
                 })
-                st.success("✅ Product entry added!")
+                st.success("✅ Entry submitted!")
 
-        # Show all product entries
         if st.session_state.product_data:
-            st.subheader("📊 Product Entries (Before Final Submission)")
-            st.dataframe(pd.DataFrame(st.session_state.product_data))
-            if st.button("Submit All Product Entries (Demo)"):
-                st.success(f"✅ {len(st.session_state.product_data)} entries submitted to GitHub (Demo)!")
-                st.session_state.product_data = []
+            st.subheader("📊 Your Previous Entries (Demo)")
+            outlet_entries = [e for e in st.session_state.product_data
+                              if e["Outlet"] == st.session_state.user]
+            st.dataframe(pd.DataFrame(outlet_entries))
 
-        # ==============================
-        # Outlet Visit Checklist Form
-        # ==============================
+    # ------------------------------
+    # MANAGER VIEW - Checklist
+    # ------------------------------
+    elif st.session_state.user_role == "manager":
         st.subheader("📋 Outlet Visit Checklist Form")
         with st.form("checklist_form", clear_on_submit=True):
             outlet_name = st.text_input("Outlet Name")
@@ -146,7 +145,7 @@ else:
 
             checklist_responses = {}
             for item in checklist_items:
-                checklist_responses[item] = st.selectbox(item, ["OK", "Not OK"], key=f"{item}_chk")
+                checklist_responses[item] = st.selectbox(item, ["OK", "Not OK", "Bad"], key=f"{item}_chk")
 
             additional_comments = st.text_area("Additional Comments")
 
@@ -162,7 +161,7 @@ else:
                 })
                 st.success("✅ Checklist submitted!")
 
-        # Show previous checklists
+        # Show previous checklists (all outlets)
         if st.session_state.checklist_data:
             st.subheader("📊 All Checklist Entries (Demo)")
             st.dataframe(pd.DataFrame([{
@@ -170,35 +169,3 @@ else:
                 "Date": d["Date"],
                 "Managers Present": d["Managers Present"]
             } for d in st.session_state.checklist_data]))
-            if st.button("Submit All Checklists (Demo)"):
-                st.success(f"✅ {len(st.session_state.checklist_data)} checklists submitted to GitHub (Demo)!")
-                st.session_state.checklist_data = []
-
-    # ==============================
-    # OUTLET VIEW
-    # ==============================
-    else:
-        st.subheader("📄 Your Product Entries")
-        outlet_products = [entry for entry in st.session_state.product_data
-                           if entry["Outlet"].lower() == st.session_state.user.lower()]
-        if outlet_products:
-            st.dataframe(pd.DataFrame(outlet_products))
-        else:
-            st.info("No product entries yet.")
-
-        st.subheader("📄 Your Checklist Submissions")
-        outlet_checklists = [entry for entry in st.session_state.checklist_data
-                             if entry["Outlet Name"].lower() == st.session_state.user.lower()]
-        if outlet_checklists:
-            for i, entry in enumerate(outlet_checklists, 1):
-                st.markdown(f"### Checklist Submission {i}")
-                st.text(f"Buyer: {entry['Buyer Name']}")
-                st.text(f"Date: {entry['Date']}")
-                st.text(f"Managers Present: {entry['Managers Present']}")
-                df = pd.DataFrame(entry['Responses'], index=[0]).T
-                df.columns = ["Status"]
-                st.table(df)
-                st.markdown("**Additional Comments:**")
-                st.text(entry['Additional Comments'])
-        else:
-            st.info("No checklist submissions yet.")
