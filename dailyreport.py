@@ -12,7 +12,7 @@ st.set_page_config(page_title="Outlet Management Dashboard", layout="wide")
 # ==============================
 # Managers credentials
 managers = {
-    "manager1": "managerpass1",
+    "salman": "12345",
     "manager2": "managerpass2",
 }
 
