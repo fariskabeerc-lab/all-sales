@@ -193,7 +193,7 @@ else:
 # Outlet-wise sales chart when a category is selected
 # ==============================
 if selected_category != "All" and selected_outlet == "All":
-    st.subheader(f"📊 Outlet-wise Sales for Category: {selected_category}")
+    st.subheader(f"📊 Outlet-wise Sales & GP for Category: {selected_category}")
 
     outlet_summary = filtered_df.groupby("outlet")[["Sales", "Profit"]].sum().reset_index()
     outlet_summary = outlet_summary.sort_values("Sales", ascending=True)
@@ -208,6 +208,7 @@ if selected_category != "All" and selected_outlet == "All":
     fig_outlet = go.Figure()
     custom_hover_outlet = outlet_summary[["Sales", "Profit", "GP%", "Market Share (%)"]].values
 
+    # Sales Bar
     fig_outlet.add_trace(go.Bar(
         y=outlet_summary["outlet"],
         x=outlet_summary["Sales"],
@@ -216,10 +217,11 @@ if selected_category != "All" and selected_outlet == "All":
         text=outlet_summary["Sales"],
         textposition="outside",
         marker_color="red",
-        marker_line_width=0,
-        hovertemplate="<b>%{y}</b><br>Sales: %{x:,.0f}<br>Profit: %{customdata[1]:,.0f}<br>GP%: %{customdata[2]}%<br>Market Share: %{customdata[3]}%<extra></extra>",
+        hovertemplate="<b>%{y}</b><br>Sales: %{x:,.0f}<br>Profit (GP): %{customdata[1]:,.0f}<br>GP%: %{customdata[2]}%<br>Market Share: %{customdata[3]}%<extra></extra>",
         customdata=custom_hover_outlet
     ))
+
+    # Profit (GP) Bar
     fig_outlet.add_trace(go.Bar(
         y=outlet_summary["outlet"],
         x=outlet_summary["Profit"],
@@ -228,8 +230,7 @@ if selected_category != "All" and selected_outlet == "All":
         text=outlet_summary["Profit"],
         textposition="outside",
         marker_color="green",
-        marker_line_width=0,
-        hovertemplate="<b>%{y}</b><br>Sales: %{customdata[0]:,.0f}<br>Profit: %{x:,.0f}<br>GP%: %{customdata[2]}%<br>Market Share: %{customdata[3]}%<extra></extra>",
+        hovertemplate="<b>%{y}</b><br>Sales: %{customdata[0]:,.0f}<br>Profit (GP): %{x:,.0f}<br>GP%: %{customdata[2]}%<br>Market Share: %{customdata[3]}%<extra></extra>",
         customdata=custom_hover_outlet
     ))
 
@@ -253,6 +254,7 @@ if selected_category != "All" and selected_outlet == "All":
         legend=dict(font=dict(size=14)),
     )
     st.plotly_chart(fig_outlet, use_container_width=True)
+
 
 # ==============================
 # Data Table
