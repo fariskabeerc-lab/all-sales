@@ -212,7 +212,7 @@ if selected_category != "All" and selected_outlet == "All":
         name="Sales",
         orientation="h",
         marker_color="red",
-        text=outlet_summary["Sales'],
+        text=outlet_summary["Sales"],
         textposition="outside",
         hovertemplate="<b>%{y}</b><br>Sales: %{x:,.0f}<br>Market Share: %{customdata[2]}%<extra></extra>",
         customdata=outlet_summary[["Sales", "GP%", "Market Share (%)"]].values
