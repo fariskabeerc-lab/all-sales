@@ -193,20 +193,20 @@ else:
 # Outlet-wise sales chart when a category is selected
 # ==============================
 if selected_category != "All" and selected_outlet == "All":
-    st.subheader(f"📊 Outlet-wise Sales & GP for Category: {selected_category}")
+    st.subheader(f"📊 Outlet-wise Sales & GP% for Category: {selected_category}")
 
     outlet_summary = filtered_df.groupby("outlet")[["Sales", "Profit"]].sum().reset_index()
     outlet_summary = outlet_summary.sort_values("Sales", ascending=True)
 
-    # 🔹 Add GP% and Market Share %
+    # 🔹 Calculate GP% and Market Share %
     outlet_summary["GP%"] = (outlet_summary["Profit"] / outlet_summary["Sales"] * 100).round(2)
     total_outlet_sales = outlet_summary["Sales"].sum()
     outlet_summary["Market Share (%)"] = (outlet_summary["Sales"] / total_outlet_sales * 100).round(2)
 
-    max_value_outlet = max(outlet_summary["Sales"].max(), outlet_summary["Profit"].max()) * 1.2
+    max_value_outlet = outlet_summary["Sales"].max() * 1.2  # only sales for x-axis
 
     fig_outlet = go.Figure()
-    custom_hover_outlet = outlet_summary[["Sales", "Profit", "GP%", "Market Share (%)"]].values
+    custom_hover_outlet = outlet_summary[["Sales", "GP%", "Market Share (%)"]].values
 
     # Sales Bar
     fig_outlet.add_trace(go.Bar(
@@ -217,20 +217,20 @@ if selected_category != "All" and selected_outlet == "All":
         text=outlet_summary["Sales"],
         textposition="outside",
         marker_color="red",
-        hovertemplate="<b>%{y}</b><br>Sales: %{x:,.0f}<br>Profit (GP): %{customdata[1]:,.0f}<br>GP%: %{customdata[2]}%<br>Market Share: %{customdata[3]}%<extra></extra>",
+        hovertemplate="<b>%{y}</b><br>Sales: %{x:,.0f}<br>GP%: %{customdata[1]}%<br>Market Share: %{customdata[2]}%<extra></extra>",
         customdata=custom_hover_outlet
     ))
 
-    # Profit (GP) Bar
+    # GP% Bar
     fig_outlet.add_trace(go.Bar(
         y=outlet_summary["outlet"],
-        x=outlet_summary["Profit"],
-        name="Profit (GP)",
+        x=outlet_summary["GP%"],
+        name="GP%",
         orientation="h",
-        text=outlet_summary["Profit"],
+        text=outlet_summary["GP%"].astype(str) + '%',
         textposition="outside",
         marker_color="green",
-        hovertemplate="<b>%{y}</b><br>Sales: %{customdata[0]:,.0f}<br>Profit (GP): %{x:,.0f}<br>GP%: %{customdata[2]}%<br>Market Share: %{customdata[3]}%<extra></extra>",
+        hovertemplate="<b>%{y}</b><br>Sales: %{customdata[0]:,.0f}<br>GP%: %{x}%<br>Market Share: %{customdata[2]}%<extra></extra>",
         customdata=custom_hover_outlet
     ))
 
@@ -246,7 +246,7 @@ if selected_category != "All" and selected_outlet == "All":
     fig_outlet.update_layout(
         barmode="group",
         bargap=0.3,
-        xaxis=dict(title="Amount", range=[0, max_value_outlet], tickfont=dict(size=14)),
+        xaxis=dict(title="Amount / GP%", range=[0, max(max_value_outlet, 100)], tickfont=dict(size=14)),
         yaxis=dict(title="Outlet", tickfont=dict(size=14), automargin=True),
         height=chart_height_outlet,
         template="plotly_white",
