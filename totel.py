@@ -190,7 +190,7 @@ else:
     st.plotly_chart(fig_bar, use_container_width=True)
 
 # ==============================
-# Outlet-wise sales chart when a category is selected
+# Outlet-wise Sales & GP% chart when a category is selected
 # ==============================
 if selected_category != "All" and selected_outlet == "All":
     st.subheader(f"📊 Outlet-wise Sales & GP% for Category: {selected_category}")
@@ -203,10 +203,8 @@ if selected_category != "All" and selected_outlet == "All":
     total_outlet_sales = outlet_summary["Sales"].sum()
     outlet_summary["Market Share (%)"] = (outlet_summary["Sales"] / total_outlet_sales * 100).round(2)
 
-    max_value_outlet = outlet_summary["Sales"].max() * 1.2  # only sales for x-axis
-
+    # Create figure
     fig_outlet = go.Figure()
-    custom_hover_outlet = outlet_summary[["Sales", "GP%", "Market Share (%)"]].values
 
     # Sales Bar
     fig_outlet.add_trace(go.Bar(
@@ -214,24 +212,24 @@ if selected_category != "All" and selected_outlet == "All":
         x=outlet_summary["Sales"],
         name="Sales",
         orientation="h",
+        marker_color="red",
         text=outlet_summary["Sales"],
         textposition="outside",
-        marker_color="red",
         hovertemplate="<b>%{y}</b><br>Sales: %{x:,.0f}<br>GP%: %{customdata[1]}%<br>Market Share: %{customdata[2]}%<extra></extra>",
-        customdata=custom_hover_outlet
+        customdata=outlet_summary[["Sales", "GP%", "Market Share (%)"]].values
     ))
 
-    # GP% Bar
-    fig_outlet.add_trace(go.Bar(
+    # GP% Line
+    fig_outlet.add_trace(go.Scatter(
         y=outlet_summary["outlet"],
         x=outlet_summary["GP%"],
         name="GP%",
-        orientation="h",
+        mode='lines+markers+text',
         text=outlet_summary["GP%"].astype(str) + '%',
-        textposition="outside",
-        marker_color="green",
-        hovertemplate="<b>%{y}</b><br>Sales: %{customdata[0]:,.0f}<br>GP%: %{x}%<br>Market Share: %{customdata[2]}%<extra></extra>",
-        customdata=custom_hover_outlet
+        textposition="top center",
+        line=dict(color='green', width=3),
+        marker=dict(size=10),
+        hovertemplate="<b>%{y}</b><br>GP%: %{x}%<extra></extra>"
     ))
 
     # Dynamic height based on number of outlets
@@ -244,15 +242,14 @@ if selected_category != "All" and selected_outlet == "All":
         chart_height_outlet = 850
 
     fig_outlet.update_layout(
-        barmode="group",
-        bargap=0.3,
-        xaxis=dict(title="Amount / GP%", range=[0, max(max_value_outlet, 100)], tickfont=dict(size=14)),
-        yaxis=dict(title="Outlet", tickfont=dict(size=14), automargin=True),
         height=chart_height_outlet,
-        template="plotly_white",
+        template='plotly_white',
         margin=dict(l=220, r=50, t=50, b=50),
-        legend=dict(font=dict(size=14)),
+        xaxis=dict(title='Sales / GP%'),
+        yaxis=dict(title='Outlet', automargin=True),
+        legend=dict(font=dict(size=14))
     )
+
     st.plotly_chart(fig_outlet, use_container_width=True)
 
 
