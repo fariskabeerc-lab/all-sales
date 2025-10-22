@@ -1,15 +1,9 @@
 import streamlit as st
 import pandas as pd
-from datetime import date
-
-# ==============================
-# PAGE CONFIG
-# ==============================
+from datetime import date, datetime
 st.set_page_config(page_title="Outlet Product Dashboard", layout="wide")
 
-# ==============================
-# OUTLET LOGIN
-# ==============================
+
 users = {
     "safa": "123123",
     "fida": "12341234",
@@ -46,34 +40,26 @@ if not st.session_state.authenticated:
 else:
     st.title(f"🏬 Dashboard - {st.session_state.user}")
 
-    # ==============================
-    # Sidebar - Form Selection
-    # ==============================
+
     form_type = st.sidebar.selectbox("Select Form Type", ["Near Expiry", "Damaged", "Other"])
 
-    # ==============================
-    # Form
-    # ==============================
+    if "submitted_data" not in st.session_state:
+        st.session_state.submitted_data = []
+
     st.subheader(f"📋 {form_type} Form")
 
     with st.form("product_form"):
-        barcode = st.text_input("Barcode")
-        product_name = st.text_input("Product Name")
-        qty = st.number_input("Qty [PCS]", min_value=0)
-        cost = st.number_input("Cost", min_value=0.0, format="%.2f")
-        amount = st.number_input("Amount", min_value=0.0, format="%.2f")
-        expiry = st.date_input("Expiry Date")
-        supplier = st.text_input("Supplier Name")
-        remarks = st.text_area("Remarks [if any]")
+        barcode = st.text_input("Barcode", key="barcode")
+        product_name = st.text_input("Product Name", key="product_name")
+        qty = st.number_input("Qty [PCS]", min_value=0, key="qty")
+        cost = st.number_input("Cost", min_value=0.0, format="%.2f", key="cost")
+        amount = st.number_input("Amount", min_value=0.0, format="%.2f", key="amount")
+        expiry = st.date_input("Expiry Date", key="expiry")
+        supplier = st.text_input("Supplier Name", key="supplier")
+        remarks = st.text_area("Remarks [if any]", key="remarks")
 
-        submitted = st.form_submit_button("Submit")
+        submitted = st.form_submit_button("Add Entry")
         if submitted:
-            st.success("✅ Data submitted successfully!")
-            
-            # Save data in session state for demo
-            if "submitted_data" not in st.session_state:
-                st.session_state.submitted_data = []
-
             st.session_state.submitted_data.append({
                 "Outlet": st.session_state.user,
                 "Form Type": form_type,
@@ -87,12 +73,29 @@ else:
                 "Remarks": remarks
             })
 
-    # ==============================
-    # Show Submitted Data (Demo Dashboard)
-    # ==============================
-    st.subheader("📊 Submitted Data Overview")
-    if "submitted_data" in st.session_state and st.session_state.submitted_data:
+            st.success("✅ Entry added!")
+            
+            st.session_state.barcode = ""
+            st.session_state.product_name = ""
+            st.session_state.qty = 0
+            st.session_state.cost = 0.0
+            st.session_state.amount = 0.0
+            st.session_state.expiry = date.today()
+            st.session_state.supplier = ""
+            st.session_state.remarks = ""
+
+    st.subheader("📊 All Entries (Before GitHub Submission)")
+
+    if st.session_state.submitted_data:
         df = pd.DataFrame(st.session_state.submitted_data)
         st.dataframe(df)
+
+        # Demo GitHub submission button
+        if st.button("Submit All to GitHub (Demo)"):
+            # In real app, here you push df to GitHub
+            st.success(f"✅ {len(st.session_state.submitted_data)} entries submitted to GitHub (Demo)!")
+            
+            # Clear all entries after submission
+            st.session_state.submitted_data = []
     else:
-        st.info("No data submitted yet.")
+        st.info("No entries added yet.")
