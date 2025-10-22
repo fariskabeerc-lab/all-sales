@@ -133,14 +133,15 @@ else:
     category_summary = filtered_df.groupby("Category")[["Sales", "Profit"]].sum().reset_index()
     category_summary = category_summary.sort_values("Sales", ascending=True)
 
-    # 🔹 Add Market Share %
+    # 🔹 Add GP% and Market Share %
+    category_summary["GP%"] = (category_summary["Profit"] / category_summary["Sales"] * 100).round(2)
     total_filtered_sales = category_summary["Sales"].sum()
     category_summary["Market Share (%)"] = (category_summary["Sales"] / total_filtered_sales * 100).round(2)
 
     max_value = max(category_summary["Sales"].max(), category_summary["Profit"].max()) * 1.2
 
     fig_bar = go.Figure()
-    custom_hover = category_summary[["Sales", "Profit", "Market Share (%)"]].values
+    custom_hover = category_summary[["Sales", "Profit", "GP%", "Market Share (%)"]].values
 
     fig_bar.add_trace(go.Bar(
         y=category_summary["Category"],
@@ -151,7 +152,7 @@ else:
         textposition="outside",
         marker_color="red",
         marker_line_width=0,
-        hovertemplate="<b>%{y}</b><br>Sales: %{x:,.0f}<br>GP: %{customdata[1]:,.0f}<br>Market Share: %{customdata[2]}%<extra></extra>",
+        hovertemplate="<b>%{y}</b><br>Sales: %{x:,.0f}<br>Profit: %{customdata[1]:,.0f}<br>GP%: %{customdata[2]}%<br>Market Share: %{customdata[3]}%<extra></extra>",
         customdata=custom_hover
     ))
     fig_bar.add_trace(go.Bar(
@@ -163,7 +164,7 @@ else:
         textposition="outside",
         marker_color="green",
         marker_line_width=0,
-        hovertemplate="<b>%{y}</b><br>Sales: %{customdata[0]:,.0f}<br>GP: %{x:,.0f}<br>Market Share: %{customdata[2]}%<extra></extra>",
+        hovertemplate="<b>%{y}</b><br>Sales: %{customdata[0]:,.0f}<br>Profit: %{x:,.0f}<br>GP%: %{customdata[2]}%<br>Market Share: %{customdata[3]}%<extra></extra>",
         customdata=custom_hover
     ))
 
@@ -197,14 +198,15 @@ if selected_category != "All" and selected_outlet == "All":
     outlet_summary = filtered_df.groupby("outlet")[["Sales", "Profit"]].sum().reset_index()
     outlet_summary = outlet_summary.sort_values("Sales", ascending=True)
 
-    # 🔹 Add Market Share %
+    # 🔹 Add GP% and Market Share %
+    outlet_summary["GP%"] = (outlet_summary["Profit"] / outlet_summary["Sales"] * 100).round(2)
     total_outlet_sales = outlet_summary["Sales"].sum()
     outlet_summary["Market Share (%)"] = (outlet_summary["Sales"] / total_outlet_sales * 100).round(2)
 
     max_value_outlet = max(outlet_summary["Sales"].max(), outlet_summary["Profit"].max()) * 1.2
 
     fig_outlet = go.Figure()
-    custom_hover_outlet = outlet_summary[["Sales", "Profit", "Market Share (%)"]].values
+    custom_hover_outlet = outlet_summary[["Sales", "Profit", "GP%", "Market Share (%)"]].values
 
     fig_outlet.add_trace(go.Bar(
         y=outlet_summary["outlet"],
@@ -215,7 +217,7 @@ if selected_category != "All" and selected_outlet == "All":
         textposition="outside",
         marker_color="red",
         marker_line_width=0,
-        hovertemplate="<b>%{y}</b><br>Sales: %{x:,.0f}<br>GP: %{customdata[1]:,.0f}<br>Market Share: %{customdata[2]}%<extra></extra>",
+        hovertemplate="<b>%{y}</b><br>Sales: %{x:,.0f}<br>Profit: %{customdata[1]:,.0f}<br>GP%: %{customdata[2]}%<br>Market Share: %{customdata[3]}%<extra></extra>",
         customdata=custom_hover_outlet
     ))
     fig_outlet.add_trace(go.Bar(
@@ -227,7 +229,7 @@ if selected_category != "All" and selected_outlet == "All":
         textposition="outside",
         marker_color="green",
         marker_line_width=0,
-        hovertemplate="<b>%{y}</b><br>Sales: %{customdata[0]:,.0f}<br>GP: %{x:,.0f}<br>Market Share: %{customdata[2]}%<extra></extra>",
+        hovertemplate="<b>%{y}</b><br>Sales: %{customdata[0]:,.0f}<br>Profit: %{x:,.0f}<br>GP%: %{customdata[2]}%<br>Market Share: %{customdata[3]}%<extra></extra>",
         customdata=custom_hover_outlet
     ))
 
