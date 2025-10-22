@@ -2,14 +2,14 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 
-# ==============================
+# ============================================
 # PAGE CONFIG
-# ==============================
+# ============================================
 st.set_page_config(page_title="Outlet Management Dashboard", layout="wide")
 
-# ==============================
-# USERS SETUP
-# ==============================
+# ============================================
+# USER SETUP
+# ============================================
 managers = {
     "salman": "12345",
     "manager2": "managerpass2",
@@ -24,98 +24,129 @@ outlets = {
 
 all_users = {**managers, **outlets}
 
-# ==============================
+# ============================================
 # SESSION STATE INIT
-# ==============================
+# ============================================
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
-
 if "user_role" not in st.session_state:
     st.session_state.user_role = None
-
 if "product_data" not in st.session_state:
-    st.session_state.product_data = []
-
+    st.session_state.product_data = []          # Permanent outlet data
+if "temp_entries" not in st.session_state:
+    st.session_state.temp_entries = []          # Temporary outlet entries
 if "checklist_data" not in st.session_state:
-    st.session_state.checklist_data = []
+    st.session_state.checklist_data = []        # Manager checklist data
 
-# ==============================
+# ============================================
 # LOGIN PAGE
-# ==============================
+# ============================================
 if not st.session_state.authenticated:
-    st.title("🔐 Login")
+    st.title("🔐 Login Page")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
+
     if st.button("Login"):
         if username in all_users and all_users[username] == password:
             st.session_state.authenticated = True
             st.session_state.user = username
             st.session_state.user_role = "manager" if username in managers else "outlet"
-            st.success(f"Welcome {username}!")
+            st.success(f"✅ Welcome {username}!")
         else:
-            st.error("Invalid username or password")
+            st.error("❌ Invalid username or password")
 
-# ==============================
-# DASHBOARD
-# ==============================
+# ============================================
+# MAIN DASHBOARD
+# ============================================
 else:
     st.title(f"🏬 Welcome {st.session_state.user} ({st.session_state.user_role})")
 
-    # ------------------------------
-    # Sidebar Navigation
-    # ------------------------------
+    # ----------------------------------------------------------
+    # OUTLET DASHBOARD
+    # ----------------------------------------------------------
     if st.session_state.user_role == "outlet":
-        form_option = st.sidebar.selectbox(
-            "Select Form",
-            ["Near Expiry", "Damaged", "Other", "Previous Entries"]
+
+        form_type = st.sidebar.selectbox(
+            "Select Form Type",
+            ["Near Expiry", "Damaged", "Other"]
         )
 
-        if form_option in ["Near Expiry", "Damaged", "Other"]:
-            st.subheader(f"📋 {form_option} Form")
-            with st.form("outlet_form", clear_on_submit=True):
+        st.subheader(f"📋 {form_type} Form")
+
+        # -----------------------------
+        # FORM FOR OUTLET ENTRY
+        # -----------------------------
+        with st.form("outlet_form", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            with col1:
                 barcode = st.text_input("Barcode")
                 product_name = st.text_input("Product Name")
                 qty = st.number_input("Qty [PCS]", min_value=0)
                 cost = st.number_input("Cost", min_value=0.0, format="%.2f")
+
+            with col2:
                 amount = st.number_input("Amount", min_value=0.0, format="%.2f")
                 expiry = st.date_input("Expiry Date", value=date.today())
                 supplier = st.text_input("Supplier Name")
                 remarks = st.text_area("Remarks [if any]")
 
-                submitted = st.form_submit_button("Submit")
-                if submitted:
-                    st.session_state.product_data.append({
-                        "Outlet": st.session_state.user,
-                        "Form Type": form_option,
-                        "Barcode": barcode,
-                        "Product Name": product_name,
-                        "Qty": qty,
-                        "Cost": cost,
-                        "Amount": amount,
-                        "Expiry Date": expiry,
-                        "Supplier": supplier,
-                        "Remarks": remarks
-                    })
-                    st.success("✅ Entry submitted!")
+            submitted = st.form_submit_button("➕ Add Entry")
+            if submitted:
+                st.session_state.temp_entries.append({
+                    "Form Type": form_type,
+                    "Barcode": barcode,
+                    "Product Name": product_name,
+                    "Qty": qty,
+                    "Cost": cost,
+                    "Amount": amount,
+                    "Expiry Date": expiry,
+                    "Supplier": supplier,
+                    "Remarks": remarks
+                })
+                st.success("✅ Entry added to the table below!")
 
-        elif form_option == "Previous Entries":
-            st.subheader("📊 Your Previous Entries (Demo)")
-            outlet_entries = [e for e in st.session_state.product_data
-                              if e["Outlet"] == st.session_state.user]
-            if outlet_entries:
-                st.dataframe(pd.DataFrame(outlet_entries))
-            else:
-                st.info("No previous entries yet.")
+        # -----------------------------
+        # TEMPORARY ENTRIES TABLE
+        # -----------------------------
+        if st.session_state.temp_entries:
+            st.subheader("📝 Current Session Entries (Pending Submission)")
+            temp_df = pd.DataFrame(st.session_state.temp_entries)
+            st.dataframe(temp_df, use_container_width=True)
 
+            if st.button("📤 Submit All Data"):
+                for entry in st.session_state.temp_entries:
+                    entry["Outlet"] = st.session_state.user
+                    st.session_state.product_data.append(entry)
+                st.session_state.temp_entries = []
+                st.success("✅ All entries submitted successfully!")
+
+        # -----------------------------
+        # SHOW ALL PREVIOUS SUBMISSIONS
+        # -----------------------------
+        outlet_entries = [e for e in st.session_state.product_data if e["Outlet"] == st.session_state.user]
+        if outlet_entries:
+            st.subheader("📊 Your Submitted Entries")
+            st.dataframe(pd.DataFrame(outlet_entries), use_container_width=True)
+        else:
+            st.info("No previous entries yet.")
+
+    # ----------------------------------------------------------
+    # MANAGER DASHBOARD
+    # ----------------------------------------------------------
     elif st.session_state.user_role == "manager":
-        option = st.sidebar.radio("Select Option", ["Outlet Checklist Form", "Previous Checklists"])
 
-        if option == "Outlet Checklist Form":
+        manager_option = st.sidebar.radio(
+            "Select Option",
+            ["Outlet Checklist Form", "Previous Checklists"]
+        )
+
+        if manager_option == "Outlet Checklist Form":
             st.subheader("📋 Outlet Visit Checklist Form")
+
             with st.form("checklist_form", clear_on_submit=True):
                 outlet_name = st.text_input("Outlet Name")
                 buyer_name = st.text_input("Buyer Name")
-                visit_date = st.date_input("Date", value=date.today())
+                visit_date = st.date_input("Visit Date", value=date.today())
                 managers_present = st.text_input("Managers Present")
 
                 checklist_items = [
@@ -152,11 +183,11 @@ else:
 
                 checklist_responses = {}
                 for item in checklist_items:
-                    checklist_responses[item] = st.selectbox(item, ["OK", "Not OK", "Bad"], key=f"{item}_chk")
+                    checklist_responses[item] = st.selectbox(item, ["OK", "Not OK", "Bad"], key=item)
 
                 additional_comments = st.text_area("Additional Comments")
 
-                submitted_chk = st.form_submit_button("Submit Checklist")
+                submitted_chk = st.form_submit_button("✅ Submit Checklist")
                 if submitted_chk:
                     st.session_state.checklist_data.append({
                         "Outlet Name": outlet_name,
@@ -166,15 +197,16 @@ else:
                         "Responses": checklist_responses,
                         "Additional Comments": additional_comments
                     })
-                    st.success("✅ Checklist submitted!")
+                    st.success("✅ Checklist submitted successfully!")
 
-        elif option == "Previous Checklists":
-            st.subheader("📊 All Checklist Entries (Demo)")
+        elif manager_option == "Previous Checklists":
+            st.subheader("📊 All Submitted Checklists")
             if st.session_state.checklist_data:
-                st.dataframe(pd.DataFrame([{
+                df_check = pd.DataFrame([{
                     "Outlet": d["Outlet Name"],
                     "Date": d["Date"],
                     "Managers Present": d["Managers Present"]
-                } for d in st.session_state.checklist_data]))
+                } for d in st.session_state.checklist_data])
+                st.dataframe(df_check, use_container_width=True)
             else:
                 st.info("No checklist submissions yet.")
