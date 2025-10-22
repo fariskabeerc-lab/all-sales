@@ -12,9 +12,9 @@ st.set_page_config(page_title="Outlet Product Dashboard", layout="wide")
 # ==============================
 # GITHUB CONFIG
 # ==============================
-GITHUB_TOKEN = "YOUR_PERSONAL_ACCESS_TOKEN"  # Replace with your token
-REPO_NAME = "username/repo_name"             # Replace with your repo
-SUBMISSION_FOLDER = "submissions"            # Folder in GitHub to store files
+GITHUB_TOKEN = "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"  # Replace with your token
+REPO_NAME = "sickmansickmansickman/reports"             # Replace with your repo
+SUBMISSION_FOLDER = "submit"            # Folder in GitHub to store files
 
 g = Github(GITHUB_TOKEN)
 repo = g.get_repo(REPO_NAME)
