@@ -11,7 +11,7 @@ st.set_page_config(page_title="Outlet Product Dashboard", layout="wide")
 # OUTLET LOGIN
 # ==============================
 users = {
-    "Outlet1": "pass1",
+    "safa": "123123",
     "Outlet2": "pass2",
     "Outlet3": "pass3",
     "Outlet4": "pass4",
