@@ -43,10 +43,14 @@ if "checklist_data" not in st.session_state:
 # LOGOUT FUNCTION
 # ==============================
 def logout():
+    # Clear all relevant session state
     for key in ["authenticated", "user_role", "user"]:
         if key in st.session_state:
             del st.session_state[key]
+    # Rerun the app safely
+    st.session_state.page_reload = True
     st.experimental_rerun()
+
 
 # ==============================
 # LOGIN PAGE
