@@ -43,13 +43,13 @@ if "checklist_data" not in st.session_state:
 # LOGOUT FUNCTION
 # ==============================
 def logout():
-    st.session_state.authenticated = False
-    st.session_state.user_role = None
-    st.session_state.user = None
+    for key in ["authenticated", "user_role", "user"]:
+        if key in st.session_state:
+            del st.session_state[key]
     st.experimental_rerun()
 
 # ==============================
-# LOGIN
+# LOGIN PAGE
 # ==============================
 if not st.session_state.authenticated:
     st.title("🔐 Login")
@@ -69,14 +69,16 @@ if not st.session_state.authenticated:
 # ==============================
 else:
     st.title(f"🏬 Welcome {st.session_state.user} ({st.session_state.user_role})")
-
-    # Sidebar for navigation and logout
+    
+    # ------------------------------
+    # Sidebar Navigation & Logout
+    # ------------------------------
     st.sidebar.title("Options")
     st.sidebar.button("Logout", on_click=logout)
 
     if st.session_state.user_role == "outlet":
         option = st.sidebar.radio("Select Form", ["Product / Expiry / Damage Form", "Previous Entries"])
-        
+
         if option == "Product / Expiry / Damage Form":
             st.subheader("📋 Product / Expiry / Damage Form")
             form_type = st.selectbox("Select Form Type", ["Near Expiry", "Damaged", "Other"])
@@ -118,7 +120,7 @@ else:
 
     elif st.session_state.user_role == "manager":
         option = st.sidebar.radio("Select Option", ["Outlet Checklist Form", "Previous Checklists"])
-        
+
         if option == "Outlet Checklist Form":
             st.subheader("📋 Outlet Visit Checklist Form")
             with st.form("checklist_form", clear_on_submit=True):
