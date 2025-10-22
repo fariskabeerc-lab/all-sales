@@ -40,19 +40,6 @@ if "checklist_data" not in st.session_state:
     st.session_state.checklist_data = []
 
 # ==============================
-# LOGOUT FUNCTION
-# ==============================
-def logout():
-    # Clear all relevant session state
-    for key in ["authenticated", "user_role", "user"]:
-        if key in st.session_state:
-            del st.session_state[key]
-    # Rerun the app safely
-    st.session_state.page_reload = True
-    st.experimental_rerun()
-
-
-# ==============================
 # LOGIN PAGE
 # ==============================
 if not st.session_state.authenticated:
@@ -73,20 +60,18 @@ if not st.session_state.authenticated:
 # ==============================
 else:
     st.title(f"🏬 Welcome {st.session_state.user} ({st.session_state.user_role})")
-    
-    # ------------------------------
-    # Sidebar Navigation & Logout
-    # ------------------------------
-    st.sidebar.title("Options")
-    st.sidebar.button("Logout", on_click=logout)
 
+    # ------------------------------
+    # Sidebar Navigation
+    # ------------------------------
     if st.session_state.user_role == "outlet":
-        option = st.sidebar.radio("Select Form", ["Product / Expiry / Damage Form", "Previous Entries"])
+        form_option = st.sidebar.selectbox(
+            "Select Form",
+            ["Near Expiry", "Damaged", "Other", "Previous Entries"]
+        )
 
-        if option == "Product / Expiry / Damage Form":
-            st.subheader("📋 Product / Expiry / Damage Form")
-            form_type = st.selectbox("Select Form Type", ["Near Expiry", "Damaged", "Other"])
-
+        if form_option in ["Near Expiry", "Damaged", "Other"]:
+            st.subheader(f"📋 {form_option} Form")
             with st.form("outlet_form", clear_on_submit=True):
                 barcode = st.text_input("Barcode")
                 product_name = st.text_input("Product Name")
@@ -101,7 +86,7 @@ else:
                 if submitted:
                     st.session_state.product_data.append({
                         "Outlet": st.session_state.user,
-                        "Form Type": form_type,
+                        "Form Type": form_option,
                         "Barcode": barcode,
                         "Product Name": product_name,
                         "Qty": qty,
@@ -113,7 +98,7 @@ else:
                     })
                     st.success("✅ Entry submitted!")
 
-        elif option == "Previous Entries":
+        elif form_option == "Previous Entries":
             st.subheader("📊 Your Previous Entries (Demo)")
             outlet_entries = [e for e in st.session_state.product_data
                               if e["Outlet"] == st.session_state.user]
