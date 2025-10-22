@@ -205,29 +205,30 @@ if selected_category != "All" and selected_outlet == "All":
 
     fig_outlet = go.Figure()
 
-    # Sales Bar (scaled independently)
+    # Sales Bar (actual scale)
     fig_outlet.add_trace(go.Bar(
         y=outlet_summary["outlet"],
         x=outlet_summary["Sales"],
         name="Sales",
         orientation="h",
         marker_color="red",
-        text=outlet_summary["Sales"],
+        text=outlet_summary["Sales'],
         textposition="outside",
         hovertemplate="<b>%{y}</b><br>Sales: %{x:,.0f}<br>Market Share: %{customdata[2]}%<extra></extra>",
         customdata=outlet_summary[["Sales", "GP%", "Market Share (%)"]].values
     ))
 
-    # GP% Bar (scaled independently)
+    # GP% Bar (scaled independently for visibility)
+    max_sales = outlet_summary["Sales"].max()
     fig_outlet.add_trace(go.Bar(
         y=outlet_summary["outlet"],
-        x=outlet_summary["GP%"],
+        x=outlet_summary["GP%"] / 100 * max_sales,  # scale GP% to max Sales for visibility
         name="GP%",
         orientation="h",
         marker_color="green",
         text=outlet_summary["GP%"].astype(str) + '%',
         textposition="outside",
-        hovertemplate="<b>%{y}</b><br>GP%: %{x}%<extra></extra>",
+        hovertemplate="<b>%{y}</b><br>GP%: %{customdata[1]}%<extra></extra>",
         customdata=outlet_summary[["Sales", "GP%", "Market Share (%)"]].values
     ))
 
@@ -241,13 +242,11 @@ if selected_category != "All" and selected_outlet == "All":
         template='plotly_white',
         margin=dict(l=220, r=50, t=50, b=50),
         xaxis=dict(showgrid=False, showticklabels=False, title=''),  # hide axis
-        xaxis2=dict(showgrid=False, showticklabels=False, title=''),  # second axis hidden
         yaxis=dict(title='Outlet', automargin=True),
         legend=dict(font=dict(size=14))
     )
 
     st.plotly_chart(fig_outlet, use_container_width=True)
-
 
 # ==============================
 # Data Table
