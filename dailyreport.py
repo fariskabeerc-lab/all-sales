@@ -1,282 +1,206 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, date
+from datetime import date
 
-# ======================================
-# PAGE CONFIGURATION
-# ======================================
-st.set_page_config(page_title="Outlet Management Dashboard", layout="wide")
-st.title("🏪 Outlet Management Dashboard")
+# --- Configuration & State Initialization ---
 
-# ======================================
-# USER LOGIN SIMULATION
-# ======================================
-managers = {"salman": "12345", "manager2": "managerpass2"}
-outlets = {"safa": "123123", "fida": "12341234"}
-all_users = {**managers, **outlets}
+# 1. Outlet/Password Configuration
+OUTLETS = {
+    "Outlet A": "outleta", "Outlet B": "outletb", "Outlet C": "outletc", "Outlet D": "outletd",
+    "Outlet E": "outlete", "Outlet F": "outletf", "Outlet G": "outletg", "Outlet H": "outleth",
+    "Outlet I": "outleti", "Outlet J": "outletj", "Outlet K": "outletk", "Outlet L": "outletl",
+    "Outlet M": "outletm", "Outlet N": "outletn", "Outlet O": "outleto", "Outlet P": "outletp",
+}
+USERNAME_REQUIRED = "almadina"
+FORM_OPTIONS = ["Expiry", "Damages", "Near Expiry"]
 
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
+# 2. Function to Initialize Session State
+def init_session_state():
+    if 'authenticated' not in st.session_state:
+        st.session_state['authenticated'] = False
+    if 'current_outlet' not in st.session_state:
+        st.session_state['current_outlet'] = None
+    if 'current_form_data' not in st.session_state:
+        st.session_state['current_form_data'] = [] # Accumulates submitted items
 
-if "user_role" not in st.session_state:
-    st.session_state.user_role = None
+# 3. Data Structure for Forms (Common Fields + Specific Remark)
+def get_common_fields(remark_label):
+    return {
+        "Barcode": st.text_input("Barcode", key="barcode"),
+        "Product Name": st.text_input("Product Name", key="product_name"),
+        "Qty [PCS]": st.number_input("Qty [PCS]", min_value=1, step=1, key="qty"),
+        "Cost": st.number_input("Cost", min_value=0.01, format="%.2f", key="cost"),
+        "Amount": None, # Will be calculated
+        "Expiry Date [dd-mmm-yy]": st.date_input("Expiry Date", min_value=date.today(), key="expiry_date"),
+        "Supplier Name": st.text_input("Supplier Name", key="supplier_name"),
+        "Remarks": st.text_input(remark_label, key="remarks"),
+        "Form Type": st.session_state.get('selected_form', 'N/A')
+    }
 
-if not st.session_state.authenticated:
-    st.subheader("🔐 Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+# --- Authentication Logic ---
 
-    if st.button("Login"):
-        if username in all_users and all_users[username] == password:
-            st.session_state.authenticated = True
-            st.session_state.username = username
-            st.session_state.user_role = "manager" if username in managers else "outlet"
-            st.success(f"✅ Welcome {username} ({st.session_state.user_role})")
-        else:
-            st.error("❌ Invalid username or password")
-    st.stop()
+def login_form():
+    st.subheader("Login 🔑")
+    with st.form("login_form"):
+        username = st.text_input("Username").lower()
+        password = st.text_input("Password (Outlet Name)", type="password")
 
-username = st.session_state.username
-role = st.session_state.user_role
+        submitted = st.form_submit_button("Login")
 
-# ======================================
-# SIDEBAR NAVIGATION
-# ======================================
-st.sidebar.title("📋 Navigation")
-if role == "outlet":
-    menu = st.sidebar.selectbox("Select Report Type", ["Expiry", "Damage", "Others"])
-else:
-    menu = st.sidebar.radio("Select an Option", ["Outlet Checklist Form", "Previous Checklists"])
+        if submitted:
+            if username == USERNAME_REQUIRED:
+                # Check if password (outlet name) is valid
+                if password in OUTLETS.values():
+                    outlet_name = [k for k, v in OUTLETS.items() if v == password][0]
+                    st.session_state['authenticated'] = True
+                    st.session_state['current_outlet'] = outlet_name
+                    st.success(f"Successfully logged in as {outlet_name}!")
+                    st.experimental_rerun()
+                else:
+                    st.error("Invalid Outlet Name (Password).")
+            else:
+                st.error("Invalid Username.")
 
-# ======================================
-# DATA INITIALIZATION
-# ======================================
-expiry_columns = [
-    "Date", "Username", "Outlet", "Item Code", "Item Name", "Brand", "Category",
-    "Quantity", "Unit", "Batch No", "Expiry Date", "Reason/Remarks"
-]
-damage_columns = [
-    "Date", "Username", "Outlet", "Item Code", "Item Name", "Brand", "Category",
-    "Quantity", "Unit", "Batch No", "Reason/Remarks"
-]
-others_columns = [
-    "Date", "Username", "Outlet", "Remarks / Description"
-]
-checklist_columns = [
-    "Date", "Username", "Outlet Name", "Buyer Name", "Managers Present", "Responses", "Additional Comments"
-]
+# --- Main Application (After Login) ---
 
-if "expiry_data" not in st.session_state:
-    st.session_state["expiry_data"] = pd.DataFrame(columns=expiry_columns)
-if "damage_data" not in st.session_state:
-    st.session_state["damage_data"] = pd.DataFrame(columns=damage_columns)
-if "others_data" not in st.session_state:
-    st.session_state["others_data"] = pd.DataFrame(columns=others_columns)
-if "checklist_data" not in st.session_state:
-    st.session_state["checklist_data"] = pd.DataFrame(columns=checklist_columns)
+def main_app():
+    # Header showing the current outlet name
+    st.header(f"Data Entry Portal 🛒 - {st.session_state['current_outlet']}")
+    st.markdown("---")
 
-# ======================================
-# OUTLET ENTRY FORM (Expiry/Damage)
-# ======================================
-def outlet_entry_form(data_key, title):
-    st.subheader(f"{title} Entry Form")
-
-    with st.form(f"{data_key}_form", clear_on_submit=True):
-        col1, col2, col3 = st.columns(3)
+    # Sidebar for Form Selection
+    with st.sidebar:
+        st.header("Select Form Type 📋")
+        
+        # Use a selectbox for a cleaner interface, selecting one at a time
+        selected_form = st.selectbox(
+            "Choose a Form:",
+            FORM_OPTIONS,
+            key="selected_form"
+        )
+        
+        # Optional: Logout Button in Sidebar
+        if st.button("Logout"):
+            st.session_state['authenticated'] = False
+            st.session_state['current_outlet'] = None
+            st.session_state['current_form_data'] = []
+            st.experimental_rerun()
+            
+    st.subheader(f"{selected_form} Entry Form")
+    
+    # --- Dynamic Form Generation ---
+    remark_label = f"Remarks [for {selected_form}]"
+    
+    with st.form(key=f'{selected_form}_form', clear_on_submit=False):
+        
+        col1, col2 = st.columns(2)
+        
         with col1:
-            outlet = st.text_input("🏪 Outlet Name", value=username)
-            item_code = st.text_input("🔢 Item Code")
-            brand = st.text_input("🏷️ Brand Name")
+            barcode = st.text_input("Barcode", max_chars=20)
+            qty = st.number_input("Qty [PCS]", min_value=1, step=1, value=1)
+            expiry_date = st.date_input("Expiry Date [dd-mmm-yy]", min_value=date.today())
+
         with col2:
-            item_name = st.text_input("🧾 Item Name")
-            category = st.text_input("📦 Category")
-            batch_no = st.text_input("🔖 Batch No")
-        with col3:
-            quantity = st.number_input("🔢 Quantity", min_value=1, step=1)
-            unit = st.selectbox("⚖️ Unit", ["PCS", "Box", "Kg", "Litre", "Pack"])
-            expiry_date = None
-            if title == "Expiry":
-                expiry_date = st.date_input("📅 Expiry Date")
+            product_name = st.text_input("Product Name")
+            cost = st.number_input("Cost", min_value=0.01, format="%.2f")
+            supplier_name = st.text_input("Supplier Name")
 
-        reason = st.text_area("📝 Reason / Remarks")
+        # Full-width Remark field
+        remarks = st.text_area(remark_label, height=50)
 
-        submitted = st.form_submit_button("Add Entry")
+        # Button to submit to the temporary list
+        submit_to_list = st.form_submit_button("Submit to List ▶️")
 
-        if submitted:
-            if item_name.strip() == "" or reason.strip() == "":
-                st.warning("⚠️ Please fill all required fields before submitting.")
-            else:
+        if submit_to_list:
+            if barcode and product_name and qty and cost and supplier_name:
+                amount = qty * cost
+                
                 new_entry = {
-                    "Date": datetime.now().strftime("%Y-%m-%d"),
-                    "Username": username,
-                    "Outlet": outlet,
-                    "Item Code": item_code,
-                    "Item Name": item_name,
-                    "Brand": brand,
-                    "Category": category,
-                    "Quantity": quantity,
-                    "Unit": unit,
-                    "Batch No": batch_no,
-                    "Expiry Date": expiry_date.strftime("%Y-%m-%d") if expiry_date else "",
-                    "Reason/Remarks": reason,
+                    "Barcode": barcode,
+                    "Product Name": product_name,
+                    "Qty [PCS]": qty,
+                    "Cost": cost,
+                    "Amount": amount,
+                    "Expiry Date [dd-mmm-yy]": expiry_date.strftime('%d-%b-%y'),
+                    "Supplier Name": supplier_name,
+                    "Remarks [if any]": remarks,
+                    "Form Type": selected_form,
+                    "Outlet": st.session_state['current_outlet'] # Crucial for Google Sheet
                 }
-                st.session_state[data_key] = pd.concat(
-                    [st.session_state[data_key], pd.DataFrame([new_entry])],
-                    ignore_index=True,
-                )
-                st.success("✅ Entry added successfully!")
-
-    if not st.session_state[data_key].empty:
-        st.write("### 🧾 Current Entries")
-        st.dataframe(st.session_state[data_key], use_container_width=True)
-
-        if st.button("📤 Submit All Data", key=f"{data_key}_submit"):
-            filename = f"{data_key}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-            st.session_state[data_key].to_excel(filename, index=False)
-            st.success(f"✅ All data saved to `{filename}` successfully!")
-            st.session_state[data_key] = pd.DataFrame(columns=st.session_state[data_key].columns)
-
-# ======================================
-# OTHERS ENTRY FORM
-# ======================================
-def other_entry_form():
-    st.subheader("📦 Other Issues / Remarks Form")
-
-    with st.form("others_form", clear_on_submit=True):
-        outlet = st.text_input("🏪 Outlet Name", value=username)
-        remarks = st.text_area("🗒️ Describe the issue / feedback / remarks")
-
-        submitted = st.form_submit_button("Add Entry")
-        if submitted:
-            if remarks.strip() == "":
-                st.warning("⚠️ Please enter some remarks before submitting.")
+                
+                st.session_state['current_form_data'].append(new_entry)
+                st.success("Item added to the submission list!")
+                # To clear form fields after submission (requires re-running the script, often done by setting a key or just letting the session state update)
             else:
-                new_entry = {
-                    "Date": datetime.now().strftime("%Y-%m-%d"),
-                    "Username": username,
-                    "Outlet": outlet,
-                    "Remarks / Description": remarks,
-                }
-                st.session_state["others_data"] = pd.concat(
-                    [st.session_state["others_data"], pd.DataFrame([new_entry])],
-                    ignore_index=True,
-                )
-                st.success("✅ Remark added successfully!")
+                st.error("Please fill in all mandatory fields (Barcode, Product Name, Qty, Cost, Supplier Name).")
+    
+    st.markdown("---")
+    
+    # --- Accumulated List Display ---
+    st.subheader("Accumulated Submission List 📝")
 
-    if not st.session_state["others_data"].empty:
-        st.write("### 🧾 Current Remarks")
-        st.dataframe(st.session_state["others_data"], use_container_width=True)
-
-        if st.button("📤 Submit All Data (Others)"):
-            filename = f"others_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-            st.session_state["others_data"].to_excel(filename, index=False)
-            st.success(f"✅ All remarks saved to `{filename}` successfully!")
-            st.session_state["others_data"] = pd.DataFrame(columns=st.session_state["others_data"].columns)
-
-# ======================================
-# MANAGER CHECKLIST FORM
-# ======================================
-def manager_checklist_form():
-    st.subheader("📋 Outlet Visit Checklist Form")
-
-    with st.form("checklist_form", clear_on_submit=True):
-        outlet_name = st.text_input("🏪 Outlet Name")
-        buyer_name = st.text_input("👤 Buyer Name")
-        visit_date = st.date_input("📅 Visit Date", value=date.today())
-        managers_present = st.text_input("👥 Managers Present")
-
-        st.divider()
-        st.markdown("### ✅ Checklist Items")
-
-        checklist_items = [
-            "Store Entrance area clean and tidy",
-            "Shopping baskets/trolleys available & in good condition",
-            "Store floors clean and dry",
-            "Shelves dust-free and organized",
-            "No stock or blockages in aisles",
-            "All staff in proper uniform and grooming",
-            "Staff awareness of promotions/products",
-            "Promotional tags and displays correctly placed",
-            "Promo stock available and refilled timely",
-            "Shelve tags properly placed",
-            "Stock neatly arranged (facing and stacking)",
-            "Expired items removed from shelves",
-            "Check for overstocked or understocked products",
-            "Verify stock levels of fast-moving items",
-            "Identify slow-moving or obsolete items",
-            "Review last purchase orders and delivery timelines",
-            "Note any frequent product requests not currently stocked",
-            "Check for counterfeit or unapproved brands",
-            "Note competitor products or promotions seen in the area",
-            "Quality of fruits and vegetables (fresh, no damage)",
-            "Check for unauthorized purchases or wastage",
-            "Validate consistency in product standards across outlets",
-            "Gather feedback from outlet managers on supply issues",
-            "Review communication between purchasing and outlet staff",
-            "Review expiry management and disposal records",
-            "Loyalty cards/offers being promoted by staff",
-            "Discuss vendor performance concerns",
-            "LC products out of stock",
-            "LC products not displayed properly",
+    if st.session_state['current_form_data']:
+        # Convert list of dicts to DataFrame for better display
+        df = pd.DataFrame(st.session_state['current_form_data'])
+        
+        # Select and reorder columns for display
+        display_cols = [
+            "Form Type", "Barcode", "Product Name", "Qty [PCS]", "Cost", "Amount", 
+            "Expiry Date [dd-mmm-yy]", "Supplier Name", "Remarks [if any]"
         ]
+        
+        st.dataframe(df[display_cols], use_container_width=True)
+        
+        # --- Full Submission Button ---
+        st.markdown("<br>", unsafe_allow_html=True) # Adding some space
 
-        checklist_responses = {}
-        for item in checklist_items:
-            checklist_responses[item] = st.selectbox(item, ["OK", "Not OK", "Bad"], key=f"{item}_chk")
-
-        additional_comments = st.text_area("🗒️ Additional Comments")
-
-        submitted_chk = st.form_submit_button("Submit Checklist")
-        if submitted_chk:
-            new_check = {
-                "Date": visit_date.strftime("%Y-%m-%d"),
-                "Username": username,
-                "Outlet Name": outlet_name,
-                "Buyer Name": buyer_name,
-                "Managers Present": managers_present,
-                "Responses": checklist_responses,
-                "Additional Comments": additional_comments,
-            }
-            st.session_state["checklist_data"] = pd.concat(
-                [st.session_state["checklist_data"], pd.DataFrame([new_check])],
-                ignore_index=True,
-            )
-            st.success("✅ Checklist submitted successfully!")
-
-# ======================================
-# MANAGER PREVIOUS CHECKLISTS
-# ======================================
-def view_previous_checklists():
-    st.subheader("📊 Previous Checklists")
-    if not st.session_state["checklist_data"].empty:
-        df_simple = pd.DataFrame([{
-            "Date": row["Date"],
-            "Outlet": row["Outlet Name"],
-            "Buyer": row["Buyer Name"],
-            "Managers Present": row["Managers Present"]
-        } for _, row in st.session_state["checklist_data"].iterrows()])
-        st.dataframe(df_simple, use_container_width=True)
-
-        if st.button("📤 Export All Checklists"):
-            filename = f"checklists_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-            st.session_state["checklist_data"].to_excel(filename, index=False)
-            st.success(f"✅ All checklist data saved to `{filename}` successfully!")
+        if st.button("Full Submit to Google Sheet 🚀", key="full_submit", type="primary"):
+            # Placeholder for Google Sheet Integration
+            
+            # --- GOOGLE SHEETS INTEGRATION LOGIC GOES HERE ---
+            # 1. Connect to Google Sheet using API credentials (not possible here)
+            # 2. Append st.session_state['current_form_data'] to the sheet.
+            
+            # Simulated Success/Failure
+            if len(st.session_state['current_form_data']) > 0:
+                st.balloons()
+                st.success(f"Successfully submitted {len(st.session_state['current_form_data'])} items to Google Sheet (Simulation Complete)!")
+                
+                # IMPORTANT: Clear the temporary list after successful submission
+                st.session_state['current_form_data'] = []
+                st.dataframe(pd.DataFrame(), use_container_width=True) # Clear the display table
+                
+            else:
+                st.warning("Submission list is empty. Nothing to submit.")
+                
     else:
-        st.info("No checklist data available yet.")
+        st.info("No items have been added to the submission list yet.")
 
-# ======================================
-# PAGE LOGIC
-# ======================================
-if role == "outlet":
-    if menu == "Expiry":
-        outlet_entry_form("expiry_data", "Expiry")
-    elif menu == "Damage":
-        outlet_entry_form("damage_data", "Damage")
-    elif menu == "Others":
-        other_entry_form()
 
-elif role == "manager":
-    if menu == "Outlet Checklist Form":
-        manager_checklist_form()
-    elif menu == "Previous Checklists":
-        view_previous_checklists()
+# --- Main Application Execution Flow ---
+
+if __name__ == '__main__':
+    st.set_page_config(
+        page_title="Almadina Stock Data Entry",
+        layout="wide", # Uses the full width of the screen, good for tables/mobile
+        initial_sidebar_state="expanded" # Sidebar visible by default
+    )
+    
+    # Custom CSS for better mobile/tab display (optional, but good practice)
+    st.markdown("""
+        <style>
+        .stButton>button {
+            width: 100%;
+        }
+        .stTextInput, .stNumberInput, .stDateInput, .stSelectbox {
+            margin-bottom: 0.5rem;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+    init_session_state()
+
+    if st.session_state['authenticated']:
+        main_app()
+    else:
+        login_form()
