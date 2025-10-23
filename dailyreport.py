@@ -1,187 +1,132 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 
-# =============================
+# ======================================
 # PAGE CONFIGURATION
-# =============================
-st.set_page_config(page_title="Expiry / Damages / Near-Expiry Demo", layout="wide")
+# ======================================
+st.set_page_config(page_title="Product Management Forms", layout="wide")
 
-# =============================
-# INITIALIZE SESSION STATE
-# =============================
-def init_state():
-    if "logged_in" not in st.session_state:
-        st.session_state.logged_in = False
-    if "outlet" not in st.session_state:
-        st.session_state.outlet = ""
-    if "pending_items" not in st.session_state:
-        st.session_state.pending_items = []
-    if "submitted_items" not in st.session_state:
-        st.session_state.submitted_items = []
+# ======================================
+# OUTLET LOGIN
+# ======================================
+st.title("🏪 Al Madina Product Management Demo")
 
-init_state()
-
-OUTLETS = [
-    "Outlet A", "Outlet B", "Outlet C", "Outlet D",
-    "Outlet E", "Outlet F", "Outlet G", "Outlet H",
-    "Outlet I", "Outlet J", "Outlet K", "Outlet L",
-    "Outlet M", "Outlet N", "Outlet O", "Outlet P",
+outlets = [
+    "Hilal", "Safa Super", "Azhar HP", "Azhar", "Blue Pearl", "Fida", "Hadeqat",
+    "Jais", "Sabah", "Sahat", "Shams salem", "Shams Liwan", "Superstore",
+    "Tay Tay", "Safa oudmehta", "Port saeed"
 ]
 
-FORMS = ["Expiry", "Damages", "Near Expiry", "Other"]
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
 
-# =============================
-# LOGIN PAGE
-# =============================
 if not st.session_state.logged_in:
-    st.markdown("## 🔐 Login")
+    username = st.text_input("👤 Username")
+    password = st.text_input("🔒 Password", type="password")
 
-    with st.form("login_form"):
-        col1, col2, col3 = st.columns([1, 1, 1])
-        with col1:
-            username = st.text_input("Username")
-        with col2:
-            password = st.text_input("Password", type="password")
-        with col3:
-            outlet_select = st.selectbox("Select your Outlet", OUTLETS)
-
-        submitted = st.form_submit_button("Login")
-
-    if submitted:
-        if username.strip().lower() == "almadina" and password.strip() == outlet_select:
+    if st.button("Login"):
+        if username.lower() == "almadina" and password == "123123":
             st.session_state.logged_in = True
-            st.session_state.outlet = outlet_select
-            st.success(f"✅ Logged in as **{outlet_select}**")
-            st.rerun()
         else:
-            st.error("❌ Invalid credentials. Username must be 'almadina' and password should match the selected outlet.")
-
-# =============================
-# MAIN PAGE (after login)
-# =============================
+            st.error("Invalid username or password. Try again.")
 else:
-    # Header section
-    top_cols = st.columns([6, 1, 1])
-    with top_cols[0]:
-        st.title(f"📋 Item Forms — {st.session_state.outlet}")
+    # Once logged in, select outlet
+    if "outlet" not in st.session_state:
+        st.session_state.outlet = None
 
-    with top_cols[1]:
-        if st.button("🔁 Logout / Switch Outlet"):
-            st.session_state.logged_in = False
-            st.session_state.outlet = ""
-            st.rerun()
-
-    with top_cols[2]:
-        if st.button("🧹 Clear Pending"):
-            st.session_state.pending_items = []
-
-    st.divider()
-
-    # =============================
-    # SIDEBAR
-    # =============================
-    with st.sidebar:
-        st.header("🗂️ Select Form Type")
-        selected_form = st.radio("Forms", FORMS)
-
-        st.divider()
-        st.write("📦 Pending items:", len(st.session_state.pending_items))
-
-        if st.button("🚀 Full Submit (Demo Only)"):
-            if len(st.session_state.pending_items) == 0:
-                st.warning("No pending items to submit.")
-            else:
-                st.session_state.submitted_items.extend(st.session_state.pending_items)
-                st.session_state.pending_items = []
-                st.success("✅ Submitted all items (demo only — not uploaded).")
-
-    # =============================
-    # INPUT FORM
-    # =============================
-    st.subheader(f"➕ Add New Item — {selected_form}")
-
-    with st.form("item_form"):
-        c1, c2, c3 = st.columns([1.5, 1.5, 1])
-        with c1:
-            barcode = st.text_input("Barcode")
-            product_name = st.text_input("Product Name")
-            qty = st.number_input("Qty [PCS]", min_value=0, step=1)
-        with c2:
-            cost = st.number_input("Cost", min_value=0.0, format="%.2f")
-            amount = st.number_input("Amount", min_value=0.0, format="%.2f", value=0.0)
-            if amount == 0 and qty > 0 and cost > 0:
-                amount = round(qty * cost, 2)
-        with c3:
-            expiry = st.date_input("Expiry Date")
-            supplier = st.text_input("Supplier Name")
-            remarks = st.text_area("Remarks (if any)")
-
-        add_btn = st.form_submit_button("Add to List")
-
-        if add_btn:
-            item = {
-                "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "Form": selected_form,
-                "Barcode": barcode,
-                "Product Name": product_name,
-                "Qty": int(qty),
-                "Cost": float(cost),
-                "Amount": float(amount),
-                "Expiry Date": expiry.strftime("%d-%b-%y"),
-                "Supplier": supplier,
-                "Remarks": remarks,
-                "Outlet": st.session_state.outlet,
-            }
-            st.session_state.pending_items.append(item)
-            st.success("Item added to pending list ✅")
-            st.rerun()
-
-    st.divider()
-
-    # =============================
-    # PENDING ITEMS TABLE
-    # =============================
-    st.subheader("🕒 Pending Items")
-    if len(st.session_state.pending_items) == 0:
-        st.info("No pending items. Add using the form above.")
+    if not st.session_state.outlet:
+        st.subheader("🏬 Select Your Outlet")
+        selected_outlet = st.selectbox("Choose Outlet", outlets)
+        if st.button("Confirm Outlet"):
+            st.session_state.outlet = selected_outlet
+            st.experimental_rerun()
     else:
-        df_pending = pd.DataFrame(st.session_state.pending_items)
-        st.dataframe(df_pending, use_container_width=True)
+        # ======================================
+        # MAIN DASHBOARD AFTER OUTLET SELECTED
+        # ======================================
+        st.sidebar.success(f"✅ Logged in as: {st.session_state.outlet}")
+        if st.sidebar.button("Logout"):
+            st.session_state.logged_in = False
+            st.session_state.outlet = None
+            st.experimental_rerun()
 
-        remove_index = st.number_input(
-            "Enter Row Index to Remove (0-based)",
-            min_value=0,
-            max_value=max(0, len(st.session_state.pending_items) - 1),
-            step=1,
+        # ======================================
+        # FULL SCREEN TOGGLE
+        # ======================================
+        full_screen = st.sidebar.toggle("🖥️ Full Screen Mode")
+
+        if full_screen:
+            st.markdown(
+                """
+                <style>
+                .main {padding-top: 0rem; padding-left: 0rem; padding-right: 0rem;}
+                </style>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        # ======================================
+        # FORM TYPE SELECTION
+        # ======================================
+        st.subheader("📋 Select Form Type")
+        form_type = st.selectbox(
+            "Choose a form to fill",
+            ["Expiry", "Damage", "Near Expiry", "Other"]
         )
 
-        if st.button("🗑️ Remove Selected Row"):
-            try:
-                st.session_state.pending_items.pop(int(remove_index))
-                st.success(f"Removed row {remove_index}")
-                st.rerun()
-            except Exception:
-                st.error("Invalid index provided.")
+        # ======================================
+        # SESSION STATE INITIALIZATION
+        # ======================================
+        if "submitted_data" not in st.session_state:
+            st.session_state.submitted_data = []
 
-        if st.button("✅ Full Submit (Demo Only)"):
-            st.session_state.submitted_items.extend(st.session_state.pending_items)
-            st.session_state.pending_items = []
-            st.success("✅ All pending items submitted (demo only — not uploaded).")
+        # ======================================
+        # FORM INPUT SECTION
+        # ======================================
+        with st.form("product_form", clear_on_submit=True):
+            st.markdown(f"### ✏️ Enter {form_type} Form Details")
 
-    st.divider()
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                barcode = st.text_input("Barcode")
+                qty = st.number_input("Qty [PCS]", min_value=0, step=1)
+            with col2:
+                product_name = st.text_input("Product Name")
+                cost = st.number_input("Cost", min_value=0.0, step=0.01)
+            with col3:
+                amount = st.number_input("Amount", min_value=0.0, step=0.01)
+                expiry_date = st.date_input("Expiry Date")
 
-    # =============================
-    # SUBMITTED ITEMS TABLE
-    # =============================
-    st.subheader("📤 Submitted Items (Demo History)")
-    if len(st.session_state.submitted_items) == 0:
-        st.info("No submitted items yet.")
-    else:
-        df_submitted = pd.DataFrame(st.session_state.submitted_items)
-        st.dataframe(df_submitted, use_container_width=True)
+            supplier_name = st.text_input("Supplier Name")
+            remarks = st.text_area("Remarks [if any]")
 
-    # =============================
-    # FOOTER
-    # =============================
-    st.caption("💡 Demo Mode: Data is stored only in memory and resets when refreshed. No Google Sheets upload is performed.")
+            submitted = st.form_submit_button("➕ Add to List")
+
+            if submitted:
+                st.session_state.submitted_data.append({
+                    "Form Type": form_type,
+                    "Barcode": barcode,
+                    "Product Name": product_name,
+                    "Qty [PCS]": qty,
+                    "Cost": cost,
+                    "Amount": amount,
+                    "Expiry Date": expiry_date.strftime("%d-%b-%y"),
+                    "Supplier Name": supplier_name,
+                    "Remarks": remarks,
+                    "Outlet": st.session_state.outlet
+                })
+                st.success(f"{form_type} record added successfully!")
+
+        # ======================================
+        # DISPLAY SUBMITTED DATA
+        # ======================================
+        if st.session_state.submitted_data:
+            df = pd.DataFrame(st.session_state.submitted_data)
+            st.markdown("### 📦 Submitted Items")
+            st.dataframe(df, use_container_width=True)
+
+            if st.button("✅ Final Submit (Save All to Sheet - Demo)"):
+                st.success("All entries submitted successfully to Google Sheet (Demo Mode)")
+                st.session_state.submitted_data.clear()
+
+        st.caption("💡 This is a demo — data is stored only during the session.")
