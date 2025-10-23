@@ -1,206 +1,208 @@
 import streamlit as st
 import pandas as pd
-from datetime import date
+from datetime import datetime
 
-# --- Configuration & State Initialization ---
+st.set_page_config(page_title="Expiry/Damages/Near-Expiry Demo", layout="wide")
 
-# 1. Outlet/Password Configuration
-OUTLETS = {
-    "Outlet A": "outleta", "Outlet B": "outletb", "Outlet C": "outletc", "Outlet D": "outletd",
-    "Outlet E": "outlete", "Outlet F": "outletf", "Outlet G": "outletg", "Outlet H": "outleth",
-    "Outlet I": "outleti", "Outlet J": "outletj", "Outlet K": "outletk", "Outlet L": "outletl",
-    "Outlet M": "outletm", "Outlet N": "outletn", "Outlet O": "outleto", "Outlet P": "outletp",
-}
-USERNAME_REQUIRED = "almadina"
-FORM_OPTIONS = ["Expiry", "Damages", "Near Expiry"]
+# -------------------------------
+# Helper functions
+# -------------------------------
 
-# 2. Function to Initialize Session State
-def init_session_state():
-    if 'authenticated' not in st.session_state:
-        st.session_state['authenticated'] = False
-    if 'current_outlet' not in st.session_state:
-        st.session_state['current_outlet'] = None
-    if 'current_form_data' not in st.session_state:
-        st.session_state['current_form_data'] = [] # Accumulates submitted items
+def init_state():
+    if "logged_in" not in st.session_state:
+        st.session_state.logged_in = False
+    if "outlet" not in st.session_state:
+        st.session_state.outlet = ""
+    if "pending_items" not in st.session_state:
+        st.session_state.pending_items = []
+    if "submitted_items" not in st.session_state:
+        st.session_state.submitted_items = []
 
-# 3. Data Structure for Forms (Common Fields + Specific Remark)
-def get_common_fields(remark_label):
-    return {
-        "Barcode": st.text_input("Barcode", key="barcode"),
-        "Product Name": st.text_input("Product Name", key="product_name"),
-        "Qty [PCS]": st.number_input("Qty [PCS]", min_value=1, step=1, key="qty"),
-        "Cost": st.number_input("Cost", min_value=0.01, format="%.2f", key="cost"),
-        "Amount": None, # Will be calculated
-        "Expiry Date [dd-mmm-yy]": st.date_input("Expiry Date", min_value=date.today(), key="expiry_date"),
-        "Supplier Name": st.text_input("Supplier Name", key="supplier_name"),
-        "Remarks": st.text_input(remark_label, key="remarks"),
-        "Form Type": st.session_state.get('selected_form', 'N/A')
-    }
 
-# --- Authentication Logic ---
+init_state()
 
-def login_form():
-    st.subheader("Login 🔑")
-    with st.form("login_form"):
-        username = st.text_input("Username").lower()
-        password = st.text_input("Password (Outlet Name)", type="password")
+OUTLETS = [
+    "Outlet A",
+    "Outlet B",
+    "Outlet C",
+    "Outlet D",
+    "Outlet E",
+    "Outlet F",
+    "Outlet G",
+    "Outlet H",
+    "Outlet I",
+    "Outlet J",
+    "Outlet K",
+    "Outlet L",
+    "Outlet M",
+    "Outlet N",
+    "Outlet O",
+    "Outlet P",
+]
 
+FORMS = ["Expiry", "Damages", "Near Expiry", "Other"]
+
+# -------------------------------
+# Login
+# -------------------------------
+if not st.session_state.logged_in:
+    st.markdown("# 🔐 Login")
+    with st.form("login_form", clear_on_submit=False):
+        cols = st.columns([1, 1, 1])
+        with cols[0]:
+            username = st.text_input("Username")
+        with cols[1]:
+            password = st.text_input("Password", type="password")
+        with cols[2]:
+            outlet_select = st.selectbox("Select your Outlet", OUTLETS)
         submitted = st.form_submit_button("Login")
 
-        if submitted:
-            if username == USERNAME_REQUIRED:
-                # Check if password (outlet name) is valid
-                if password in OUTLETS.values():
-                    outlet_name = [k for k, v in OUTLETS.items() if v == password][0]
-                    st.session_state['authenticated'] = True
-                    st.session_state['current_outlet'] = outlet_name
-                    st.success(f"Successfully logged in as {outlet_name}!")
-                    st.experimental_rerun()
-                else:
-                    st.error("Invalid Outlet Name (Password).")
-            else:
-                st.error("Invalid Username.")
-
-# --- Main Application (After Login) ---
-
-def main_app():
-    # Header showing the current outlet name
-    st.header(f"Data Entry Portal 🛒 - {st.session_state['current_outlet']}")
-    st.markdown("---")
-
-    # Sidebar for Form Selection
-    with st.sidebar:
-        st.header("Select Form Type 📋")
-        
-        # Use a selectbox for a cleaner interface, selecting one at a time
-        selected_form = st.selectbox(
-            "Choose a Form:",
-            FORM_OPTIONS,
-            key="selected_form"
-        )
-        
-        # Optional: Logout Button in Sidebar
-        if st.button("Logout"):
-            st.session_state['authenticated'] = False
-            st.session_state['current_outlet'] = None
-            st.session_state['current_form_data'] = []
+    if submitted:
+        # Requirement: username must be 'almadina' and password equals the outlet name (as per your instructions)
+        if username.strip().lower() == "almadina" and password.strip() == outlet_select:
+            st.session_state.logged_in = True
+            st.session_state.outlet = outlet_select
+            st.success(f"Logged in as **{outlet_select}**")
             st.experimental_rerun()
-            
-    st.subheader(f"{selected_form} Entry Form")
-    
-    # --- Dynamic Form Generation ---
-    remark_label = f"Remarks [for {selected_form}]"
-    
-    with st.form(key=f'{selected_form}_form', clear_on_submit=False):
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            barcode = st.text_input("Barcode", max_chars=20)
-            qty = st.number_input("Qty [PCS]", min_value=1, step=1, value=1)
-            expiry_date = st.date_input("Expiry Date [dd-mmm-yy]", min_value=date.today())
+        else:
+            st.error("Invalid credentials. Username should be 'almadina' and password should match the chosen outlet name.")
 
-        with col2:
-            product_name = st.text_input("Product Name")
-            cost = st.number_input("Cost", min_value=0.01, format="%.2f")
-            supplier_name = st.text_input("Supplier Name")
+else:
+    # Top bar with logout and outlet name
+    cols_top = st.columns([6, 1, 1])
+    with cols_top[0]:
+        st.title(f"📋 Forms Demo — {st.session_state.outlet}")
+    with cols_top[1]:
+        if st.button("🔁 Switch Outlet / Logout"):
+            # simple logout
+            st.session_state.logged_in = False
+            st.session_state.outlet = ""
+            st.experimental_rerun()
 
-        # Full-width Remark field
-        remarks = st.text_area(remark_label, height=50)
+    with cols_top[2]:
+        if st.button("⬇️ Clear Pending"):
+            st.session_state.pending_items = []
 
-        # Button to submit to the temporary list
-        submit_to_list = st.form_submit_button("Submit to List ▶️")
-
-        if submit_to_list:
-            if barcode and product_name and qty and cost and supplier_name:
-                amount = qty * cost
-                
-                new_entry = {
-                    "Barcode": barcode,
-                    "Product Name": product_name,
-                    "Qty [PCS]": qty,
-                    "Cost": cost,
-                    "Amount": amount,
-                    "Expiry Date [dd-mmm-yy]": expiry_date.strftime('%d-%b-%y'),
-                    "Supplier Name": supplier_name,
-                    "Remarks [if any]": remarks,
-                    "Form Type": selected_form,
-                    "Outlet": st.session_state['current_outlet'] # Crucial for Google Sheet
-                }
-                
-                st.session_state['current_form_data'].append(new_entry)
-                st.success("Item added to the submission list!")
-                # To clear form fields after submission (requires re-running the script, often done by setting a key or just letting the session state update)
-            else:
-                st.error("Please fill in all mandatory fields (Barcode, Product Name, Qty, Cost, Supplier Name).")
-    
     st.markdown("---")
-    
-    # --- Accumulated List Display ---
-    st.subheader("Accumulated Submission List 📝")
 
-    if st.session_state['current_form_data']:
-        # Convert list of dicts to DataFrame for better display
-        df = pd.DataFrame(st.session_state['current_form_data'])
-        
-        # Select and reorder columns for display
-        display_cols = [
-            "Form Type", "Barcode", "Product Name", "Qty [PCS]", "Cost", "Amount", 
-            "Expiry Date [dd-mmm-yy]", "Supplier Name", "Remarks [if any]"
-        ]
-        
-        st.dataframe(df[display_cols], use_container_width=True)
-        
-        # --- Full Submission Button ---
-        st.markdown("<br>", unsafe_allow_html=True) # Adding some space
-
-        if st.button("Full Submit to Google Sheet 🚀", key="full_submit", type="primary"):
-            # Placeholder for Google Sheet Integration
-            
-            # --- GOOGLE SHEETS INTEGRATION LOGIC GOES HERE ---
-            # 1. Connect to Google Sheet using API credentials (not possible here)
-            # 2. Append st.session_state['current_form_data'] to the sheet.
-            
-            # Simulated Success/Failure
-            if len(st.session_state['current_form_data']) > 0:
-                st.balloons()
-                st.success(f"Successfully submitted {len(st.session_state['current_form_data'])} items to Google Sheet (Simulation Complete)!")
-                
-                # IMPORTANT: Clear the temporary list after successful submission
-                st.session_state['current_form_data'] = []
-                st.dataframe(pd.DataFrame(), use_container_width=True) # Clear the display table
-                
+    # Layout: sidebar for form selection (as list, one at a time)
+    with st.sidebar:
+        st.header("Select Form Type")
+        selected_form = st.radio("Forms", FORMS)
+        st.markdown("---")
+        st.markdown("**Quick actions**")
+        st.write("Pending items: ", len(st.session_state.pending_items))
+        if st.button("Simulate Full Submit to Google Sheets (demo)"):
+            # For demo: move pending to submitted and clear pending
+            if len(st.session_state.pending_items) == 0:
+                st.warning("No pending items to submit.")
             else:
-                st.warning("Submission list is empty. Nothing to submit.")
-                
+                st.session_state.submitted_items.extend(st.session_state.pending_items)
+                st.session_state.pending_items = []
+                st.success("Submitted pending items to submitted list (demo). In a real app this would push to Google Sheets.")
+
+    # Main area: form inputs + pending list + submitted list
+    st.subheader(f"Add new item — {selected_form}")
+
+    with st.form(key="item_form"):
+        # Responsive columns: if narrow, Streamlit will wrap
+        c1, c2, c3 = st.columns([1.5, 1.5, 1])
+        with c1:
+            barcode = st.text_input("Barcode")
+            product_name = st.text_input("Product Name")
+            qty = st.number_input("Qty [PCS]", min_value=0, step=1)
+        with c2:
+            cost = st.number_input("Cost", min_value=0.0, format="%.2f")
+            amount = st.number_input("Amount", min_value=0.0, format="%.2f", value=0.0)
+            # auto-calc amount if user leaves it default 0
+            if amount == 0 and qty > 0 and cost > 0:
+                amount = round(qty * cost, 2)
+        with c3:
+            expiry = st.date_input("Expiry Date")
+            supplier = st.text_input("Supplier Name")
+            remarks = st.text_area("Remarks (if any)")
+
+        add_btn = st.form_submit_button("➕ Add to List")
+
+        if add_btn:
+            item = {
+                "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "Form": selected_form,
+                "Barcode": barcode,
+                "Product Name": product_name,
+                "Qty": int(qty),
+                "Cost": float(cost),
+                "Amount": float(amount),
+                "Expiry Date": expiry.strftime("%d-%b-%y"),
+                "Supplier": supplier,
+                "Remarks": remarks,
+                "Outlet": st.session_state.outlet,
+            }
+            st.session_state.pending_items.append(item)
+            st.success("Added to pending list")
+            st.experimental_rerun()
+
+    st.markdown("---")
+
+    # Pending items table with remove option
+    st.subheader("Pending Items (will be sent together on Full Submit)")
+    if len(st.session_state.pending_items) == 0:
+        st.info("No pending items. Add items using the form above.")
     else:
-        st.info("No items have been added to the submission list yet.")
+        df_pending = pd.DataFrame(st.session_state.pending_items)
+        st.dataframe(df_pending, use_container_width=True)
 
+        # allow removing rows by index
+        remove_idx = st.number_input("Enter row index to remove (0-based)", min_value=0, max_value=max(0, len(st.session_state.pending_items) - 1), step=1)
+        if st.button("Remove Row"):
+            try:
+                st.session_state.pending_items.pop(int(remove_idx))
+                st.success(f"Removed row {remove_idx}")
+                st.experimental_rerun()
+            except Exception as e:
+                st.error("Could not remove the row. Check the index.")
 
-# --- Main Application Execution Flow ---
+        # Full submit button (demo pushes to 'submitted_items' list). In production this is where you'd push to Google Sheets.
+        if st.button("✅ Full Submit (push all pending to Google Sheet - demo)"):
+            # demo action: append to submitted_items and clear pending
+            st.session_state.submitted_items.extend(st.session_state.pending_items)
+            st.session_state.pending_items = []
+            st.success("All pending items moved to submitted list (demo). In a real app these would be written to Google Sheets.")
 
-if __name__ == '__main__':
-    st.set_page_config(
-        page_title="Almadina Stock Data Entry",
-        layout="wide", # Uses the full width of the screen, good for tables/mobile
-        initial_sidebar_state="expanded" # Sidebar visible by default
-    )
-    
-    # Custom CSS for better mobile/tab display (optional, but good practice)
-    st.markdown("""
-        <style>
-        .stButton>button {
-            width: 100%;
-        }
-        .stTextInput, .stNumberInput, .stDateInput, .stSelectbox {
-            margin-bottom: 0.5rem;
-        }
-        </style>
-        """, unsafe_allow_html=True)
+    st.markdown("---")
 
-    init_session_state()
-
-    if st.session_state['authenticated']:
-        main_app()
+    # Submitted items table (history)
+    st.subheader("Submitted Items (demo history)")
+    if len(st.session_state.submitted_items) == 0:
+        st.info("No submitted items yet.")
     else:
-        login_form()
+        df_sub = pd.DataFrame(st.session_state.submitted_items)
+        st.dataframe(df_sub, use_container_width=True)
+
+    # -------------------------------
+    # Notes for integrating with Google Sheets
+    # -------------------------------
+    with st.expander("How to connect this to Google Sheets (instructions)"):
+        st.markdown(
+            """
+- Use `gspread` or `gspread-dataframe` together with a service account JSON key.
+- Share the target Google Sheet with the service account email.
+- Example (pseudo):
+
+```python
+import gspread
+from gspread_dataframe import set_with_dataframe
+
+gc = gspread.service_account(filename='service_account.json')
+sheet = gc.open_by_key('<SHEET_KEY>').worksheet('<SHEET_NAME>')
+# write a DataFrame
+set_with_dataframe(sheet, df_sub, include_index=False)
+```
+
+For security, don't hardcode credentials in your repo. Use Streamlit Cloud secrets or environment variables.
+"""
+        )
+
+    st.caption("This is a fully client-side demo — no Google Sheets calls are made. Use the instructions above to activate the real write path.")
+
+    st.markdown("\n\n---\nPowered by a lightweight demo Streamlit app. Responsive layout and suitable for mobile/tablet/desktop previews.")
