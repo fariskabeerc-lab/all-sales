@@ -5,10 +5,10 @@ from datetime import datetime
 # =============================
 # PAGE CONFIGURATION
 # =============================
-st.set_page_config(page_title="Expiry/Damages/Near-Expiry Demo", layout="wide")
+st.set_page_config(page_title="Expiry / Damages / Near-Expiry Demo", layout="wide")
 
 # =============================
-# HELPER FUNCTIONS
+# INITIALIZE SESSION STATE
 # =============================
 def init_state():
     if "logged_in" not in st.session_state:
@@ -37,7 +37,7 @@ FORMS = ["Expiry", "Damages", "Near Expiry", "Other"]
 if not st.session_state.logged_in:
     st.markdown("## 🔐 Login")
 
-    with st.form("login_form", clear_on_submit=False):
+    with st.form("login_form"):
         col1, col2, col3 = st.columns([1, 1, 1])
         with col1:
             username = st.text_input("Username")
@@ -53,18 +53,18 @@ if not st.session_state.logged_in:
             st.session_state.logged_in = True
             st.session_state.outlet = outlet_select
             st.success(f"✅ Logged in as **{outlet_select}**")
-            st.rerun()  # ✅ Updated for latest Streamlit version
+            st.rerun()
         else:
-            st.error("❌ Invalid credentials. Username should be 'almadina' and password should match the chosen outlet name.")
+            st.error("❌ Invalid credentials. Username must be 'almadina' and password should match the selected outlet.")
 
 # =============================
 # MAIN PAGE (after login)
 # =============================
 else:
-    # Header with outlet info and logout buttons
+    # Header section
     top_cols = st.columns([6, 1, 1])
     with top_cols[0]:
-        st.title(f"📋 Forms Dashboard — {st.session_state.outlet}")
+        st.title(f"📋 Item Forms — {st.session_state.outlet}")
 
     with top_cols[1]:
         if st.button("🔁 Logout / Switch Outlet"):
@@ -82,26 +82,26 @@ else:
     # SIDEBAR
     # =============================
     with st.sidebar:
-        st.header("🗂️ Form Type")
-        selected_form = st.radio("Select a Form", FORMS)
+        st.header("🗂️ Select Form Type")
+        selected_form = st.radio("Forms", FORMS)
 
         st.divider()
-        st.write("📦 **Pending Items:**", len(st.session_state.pending_items))
+        st.write("📦 Pending items:", len(st.session_state.pending_items))
 
-        if st.button("🚀 Full Submit (demo to Google Sheets)"):
+        if st.button("🚀 Full Submit (Demo Only)"):
             if len(st.session_state.pending_items) == 0:
                 st.warning("No pending items to submit.")
             else:
                 st.session_state.submitted_items.extend(st.session_state.pending_items)
                 st.session_state.pending_items = []
-                st.success("All items submitted (demo only).")
+                st.success("✅ Submitted all items (demo only — not uploaded).")
 
     # =============================
-    # FORM INPUT AREA
+    # INPUT FORM
     # =============================
-    st.subheader(f"Add New Item — {selected_form}")
+    st.subheader(f"➕ Add New Item — {selected_form}")
 
-    with st.form(key="item_form"):
+    with st.form("item_form"):
         c1, c2, c3 = st.columns([1.5, 1.5, 1])
         with c1:
             barcode = st.text_input("Barcode")
@@ -117,7 +117,7 @@ else:
             supplier = st.text_input("Supplier Name")
             remarks = st.text_area("Remarks (if any)")
 
-        add_btn = st.form_submit_button("➕ Add to List")
+        add_btn = st.form_submit_button("Add to List")
 
         if add_btn:
             item = {
@@ -140,11 +140,11 @@ else:
     st.divider()
 
     # =============================
-    # PENDING ITEMS
+    # PENDING ITEMS TABLE
     # =============================
     st.subheader("🕒 Pending Items")
     if len(st.session_state.pending_items) == 0:
-        st.info("No pending items. Add items using the form above.")
+        st.info("No pending items. Add using the form above.")
     else:
         df_pending = pd.DataFrame(st.session_state.pending_items)
         st.dataframe(df_pending, use_container_width=True)
@@ -164,15 +164,15 @@ else:
             except Exception:
                 st.error("Invalid index provided.")
 
-        if st.button("✅ Full Submit (Demo)"):
+        if st.button("✅ Full Submit (Demo Only)"):
             st.session_state.submitted_items.extend(st.session_state.pending_items)
             st.session_state.pending_items = []
-            st.success("All pending items moved to submitted list (demo).")
+            st.success("✅ All pending items submitted (demo only — not uploaded).")
 
     st.divider()
 
     # =============================
-    # SUBMITTED ITEMS (DEMO)
+    # SUBMITTED ITEMS TABLE
     # =============================
     st.subheader("📤 Submitted Items (Demo History)")
     if len(st.session_state.submitted_items) == 0:
@@ -182,11 +182,6 @@ else:
         st.dataframe(df_submitted, use_container_width=True)
 
     # =============================
-    # GOOGLE SHEETS INSTRUCTIONS
+    # FOOTER
     # =============================
-    with st.expander("📘 How to Connect This to Google Sheets"):
-        st.markdown(
-            """
-- Install **gspread** and **gspread-dataframe**:
-  ```bash
-  pip install gspread gspread-dataframe
+    st.caption("💡 Demo Mode: Data is stored only in memory and resets when refreshed. No Google Sheets upload is performed.")
