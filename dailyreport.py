@@ -22,6 +22,8 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "outlet" not in st.session_state:
     st.session_state.outlet = None
+if "submitted_data" not in st.session_state:
+    st.session_state.submitted_data = []
 
 # ======================================
 # LOGIN PAGE
@@ -33,27 +35,35 @@ if not st.session_state.logged_in:
     st.markdown("### 🏬 Select Your Outlet")
     selected_outlet = st.selectbox("Choose Outlet", ["-- Select --"] + outlets)
 
-    # Login section
+    # Username / Password
     username = st.text_input("👤 Username")
     password = st.text_input("🔒 Password", type="password")
+
+    login_success = False  # flag
 
     if st.button("Login"):
         if selected_outlet == "-- Select --":
             st.warning("Please select an outlet before logging in.")
         elif username.lower() == "almadina" and password == "123123":
-            st.session_state.logged_in = True
-            st.session_state.outlet = selected_outlet
-            st.experimental_rerun()
+            login_success = True
         else:
             st.error("Invalid username or password.")
-else:
+
+    if login_success:
+        st.session_state.logged_in = True
+        st.session_state.outlet = selected_outlet
+        st.success(f"✅ Logged in successfully! Outlet: {st.session_state.outlet}")
+
+# ======================================
+# DASHBOARD AFTER LOGIN
+# ======================================
+if st.session_state.logged_in and st.session_state.outlet:
     # ======================================
     # FULL SCREEN TOGGLE
     # ======================================
     st.sidebar.subheader("⚙️ Settings")
     full_screen = st.sidebar.toggle("🖥️ Full Screen Mode")
 
-    # Inject CSS for true fullscreen
     if full_screen:
         st.markdown(
             """
@@ -77,10 +87,10 @@ else:
         )
 
     # ======================================
-    # HEADER
+    # DASHBOARD HEADER
     # ======================================
     st.markdown(
-        f"<h3 style='text-align:center;'>🛒 Outlet: {st.session_state.outlet}</h3>",
+        f"<h2 style='text-align:center;'>🛒 Outlet Dashboard: {st.session_state.outlet}</h2>",
         unsafe_allow_html=True
     )
 
@@ -94,13 +104,7 @@ else:
     )
 
     # ======================================
-    # INITIALIZE STORAGE
-    # ======================================
-    if "submitted_data" not in st.session_state:
-        st.session_state.submitted_data = []
-
-    # ======================================
-    # FORM SECTION
+    # FORM INPUT SECTION
     # ======================================
     st.markdown(
         """
