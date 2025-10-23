@@ -44,7 +44,7 @@ role = st.session_state.user_role
 # ======================================
 st.sidebar.title("📋 Navigation")
 if role == "outlet":
-    menu = st.sidebar.radio("Select an Option", ["Expiry Entry", "Damage Entry"])
+    menu = st.sidebar.selectbox("Select Report Type", ["Expiry", "Damage", "Others"])
 else:
     menu = st.sidebar.radio("Select an Option", ["Outlet Checklist Form", "Previous Checklists"])
 
@@ -59,6 +59,9 @@ damage_columns = [
     "Date", "Username", "Outlet", "Item Code", "Item Name", "Brand", "Category",
     "Quantity", "Unit", "Batch No", "Reason/Remarks"
 ]
+others_columns = [
+    "Date", "Username", "Outlet", "Remarks / Description"
+]
 checklist_columns = [
     "Date", "Username", "Outlet Name", "Buyer Name", "Managers Present", "Responses", "Additional Comments"
 ]
@@ -67,6 +70,8 @@ if "expiry_data" not in st.session_state:
     st.session_state["expiry_data"] = pd.DataFrame(columns=expiry_columns)
 if "damage_data" not in st.session_state:
     st.session_state["damage_data"] = pd.DataFrame(columns=damage_columns)
+if "others_data" not in st.session_state:
+    st.session_state["others_data"] = pd.DataFrame(columns=others_columns)
 if "checklist_data" not in st.session_state:
     st.session_state["checklist_data"] = pd.DataFrame(columns=checklist_columns)
 
@@ -130,6 +135,43 @@ def outlet_entry_form(data_key, title):
             st.session_state[data_key].to_excel(filename, index=False)
             st.success(f"✅ All data saved to `{filename}` successfully!")
             st.session_state[data_key] = pd.DataFrame(columns=st.session_state[data_key].columns)
+
+# ======================================
+# OTHERS ENTRY FORM
+# ======================================
+def other_entry_form():
+    st.subheader("📦 Other Issues / Remarks Form")
+
+    with st.form("others_form", clear_on_submit=True):
+        outlet = st.text_input("🏪 Outlet Name", value=username)
+        remarks = st.text_area("🗒️ Describe the issue / feedback / remarks")
+
+        submitted = st.form_submit_button("Add Entry")
+        if submitted:
+            if remarks.strip() == "":
+                st.warning("⚠️ Please enter some remarks before submitting.")
+            else:
+                new_entry = {
+                    "Date": datetime.now().strftime("%Y-%m-%d"),
+                    "Username": username,
+                    "Outlet": outlet,
+                    "Remarks / Description": remarks,
+                }
+                st.session_state["others_data"] = pd.concat(
+                    [st.session_state["others_data"], pd.DataFrame([new_entry])],
+                    ignore_index=True,
+                )
+                st.success("✅ Remark added successfully!")
+
+    if not st.session_state["others_data"].empty:
+        st.write("### 🧾 Current Remarks")
+        st.dataframe(st.session_state["others_data"], use_container_width=True)
+
+        if st.button("📤 Submit All Data (Others)"):
+            filename = f"others_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            st.session_state["others_data"].to_excel(filename, index=False)
+            st.success(f"✅ All remarks saved to `{filename}` successfully!")
+            st.session_state["others_data"] = pd.DataFrame(columns=st.session_state["others_data"].columns)
 
 # ======================================
 # MANAGER CHECKLIST FORM
@@ -226,10 +268,12 @@ def view_previous_checklists():
 # PAGE LOGIC
 # ======================================
 if role == "outlet":
-    if menu == "Expiry Entry":
+    if menu == "Expiry":
         outlet_entry_form("expiry_data", "Expiry")
-    elif menu == "Damage Entry":
+    elif menu == "Damage":
         outlet_entry_form("damage_data", "Damage")
+    elif menu == "Others":
+        other_entry_form()
 
 elif role == "manager":
     if menu == "Outlet Checklist Form":
