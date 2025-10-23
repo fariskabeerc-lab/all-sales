@@ -62,25 +62,32 @@ if st.session_state.logged_in and st.session_state.outlet:
     # FULL SCREEN TOGGLE
     # ======================================
     st.sidebar.subheader("⚙️ Settings")
-    full_screen = st.sidebar.toggle("🖥️ Full Screen Mode")
+    if "full_screen" not in st.session_state:
+        st.session_state.full_screen = False
 
-    if full_screen:
+    toggle_fs = st.sidebar.checkbox("🖥️ Full Screen Mode", value=st.session_state.full_screen)
+    st.session_state.full_screen = toggle_fs
+
+    if st.session_state.full_screen:
+        # Hide header, toolbar, sidebar, remove padding
         st.markdown(
             """
             <style>
-            [data-testid="stAppViewContainer"] {
-                padding: 0 !important;
-                margin: 0 !important;
-            }
-            [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stSidebar"] {
-                display: none;
-            }
-            html, body, .block-container {
-                height: 100%;
-                width: 100%;
-                margin: 0;
-                padding: 0;
-            }
+            [data-testid="stAppViewContainer"] {padding:0 !important; margin:0 !important;}
+            [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stSidebar"] {display:none;}
+            html, body, .block-container {height:100%; width:100%; margin:0; padding:0;}
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        # Reset to normal view
+        st.markdown(
+            """
+            <style>
+            [data-testid="stAppViewContainer"] {padding:1rem !important; margin:0;}
+            [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stSidebar"] {display:block;}
+            html, body, .block-container {height:auto; width:auto;}
             </style>
             """,
             unsafe_allow_html=True,
