@@ -8,11 +8,11 @@ from datetime import datetime
 st.set_page_config(page_title="Outlet Form Dashboard", layout="wide")
 
 # ==========================================
-# LOAD ITEM DATA
+# LOAD ITEM DATA (for auto-fill)
 # ==========================================
 @st.cache_data
 def load_item_data():
-    file_path = "alllist.xlsx"
+    file_path = "alllist.xlsx"  # Replace with your Excel path
     df = pd.read_excel(file_path)
     df.columns = df.columns.str.strip()
     return df
@@ -29,12 +29,15 @@ outlets = [
 ]
 password = "123123"
 
+# Initialize session state variables
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "selected_outlet" not in st.session_state:
     st.session_state.selected_outlet = None
 if "submitted_items" not in st.session_state:
     st.session_state.submitted_items = []
+if "barcode_input" not in st.session_state:
+    st.session_state.barcode_input = ""
 
 # ==========================================
 # LOGIN PAGE
@@ -54,26 +57,27 @@ if not st.session_state.logged_in:
             st.error("❌ Invalid username or password")
 
 # ==========================================
-# DASHBOARD
+# MAIN DASHBOARD
 # ==========================================
 else:
     outlet_name = st.session_state.selected_outlet
     st.markdown(f"<h2 style='text-align:center;'>🏪 {outlet_name} Dashboard</h2>", unsafe_allow_html=True)
 
-    # FORM SELECTION
+    # FORM TYPE SELECTION
     form_type = st.sidebar.radio(
         "📋 Select Form Type",
-        ["Expiry", "Damages", "Near Expiry"],
-        horizontal=False
+        ["Expiry", "Damages", "Near Expiry"]
     )
+
     st.markdown("---")
 
     # ==============================
-    # FORM INPUTS (NO FORM SUBMISSION ON ENTER)
+    # FORM INPUTS
     # ==============================
     col1, col2, col3 = st.columns(3)
     with col1:
-        barcode = st.text_input("Barcode")
+        barcode = st.text_input("Barcode", value=st.session_state.barcode_input)
+        st.session_state.barcode_input = barcode
     with col2:
         qty = st.number_input("Qty [PCS]", min_value=1, value=1)
     with col3:
@@ -108,7 +112,7 @@ else:
     remarks = st.text_area("Remarks [if any]")
 
     # ==============================
-    # ADD TO LIST BUTTON (ONLY THIS ADDS ITEMS)
+    # ADD TO LIST BUTTON
     # ==============================
     if st.button("➕ Add to List"):
         if barcode and item_name:
@@ -127,9 +131,7 @@ else:
                 "Outlet": outlet_name
             })
             st.success("✅ Added to list successfully!")
-            # Clear barcode, qty, remarks for next entry
-            st.session_state.barcode_input = ""
-            st.experimental_rerun()
+            st.session_state.barcode_input = ""  # clear barcode input
         else:
             st.warning("⚠️ Fill barcode and item before adding.")
 
@@ -145,9 +147,13 @@ else:
         with colA:
             if st.button("🧹 Clear List"):
                 st.session_state.submitted_items = []
-                st.experimental_rerun()
         with colB:
             if st.button("📤 Submit All (Demo)"):
                 st.success("✅ All data submitted to Google Sheet (demo only)")
                 st.session_state.submitted_items = []
-                st.experimental_rerun()
+
+    # LOGOUT
+    st.sidebar.button("🚪 Logout", on_click=lambda: [
+        st.session_state.update({"logged_in": False, "selected_outlet": None, "submitted_items": [], "barcode_input": ""}),
+        st.experimental_rerun()
+    ])
