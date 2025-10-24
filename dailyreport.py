@@ -36,6 +36,9 @@ if "selected_outlet" not in st.session_state:
 if "submitted_items" not in st.session_state:
     st.session_state.submitted_items = []
 
+# ==========================================
+# LOGIN PAGE
+# ==========================================
 if not st.session_state.logged_in:
     st.title("🔐 Outlet Login")
     username = st.text_input("Username", placeholder="Enter username")
@@ -50,47 +53,23 @@ if not st.session_state.logged_in:
         else:
             st.error("❌ Invalid username or password")
 
+# ==========================================
+# MAIN DASHBOARD
+# ==========================================
 else:
-    # ==========================================
-    # MAIN DASHBOARD
-    # ==========================================
     outlet_name = st.session_state.selected_outlet
     st.markdown(f"<h2 style='text-align:center;'>🏪 {outlet_name} Dashboard</h2>", unsafe_allow_html=True)
 
-    # ------------------------------
-    # FULL SCREEN TOGGLE
-    # ------------------------------
-    full_screen = st.sidebar.toggle("🖥️ Full Screen Mode")
-
-    if full_screen:
-        hide_css = """
-        <style>
-        [data-testid="stAppViewContainer"] {padding:0; margin:0;}
-        [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stSidebar"] {display:none;}
-        html, body, .block-container {height:100%; width:100%; margin:0; padding:0;}
-        </style>
-        """
-        st.markdown(hide_css, unsafe_allow_html=True)
-    else:
-        show_css = """
-        <style>
-        [data-testid="stAppViewContainer"] {padding:1rem;}
-        [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stSidebar"] {display:block;}
-        </style>
-        """
-        st.markdown(show_css, unsafe_allow_html=True)
-
-    # Disable Enter key submission
+    # =================================================
+    # Disable Enter key globally for all forms
+    # =================================================
     st.markdown("""
         <script>
-        const forms = window.parent.document.querySelectorAll('form');
-        forms.forEach(form => {
-            form.addEventListener('keydown', function(event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    return false;
-                }
-            });
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' && event.target.tagName === 'INPUT') {
+                event.preventDefault();
+                return false;
+            }
         });
         </script>
     """, unsafe_allow_html=True)
@@ -98,7 +77,7 @@ else:
     # ==========================================
     # FORM SELECTION (LEFT SIDE)
     # ==========================================
-    form_type = st.radio(
+    form_type = st.sidebar.radio(
         "📋 Select Form Type",
         ["Expiry", "Damages", "Near Expiry"],
         horizontal=False,
@@ -132,18 +111,18 @@ else:
         if barcode:
             match = item_data[item_data["Item Bar Code"].astype(str) == str(barcode)]
             if not match.empty:
-                item_name = match.iloc[0]["Item Name"]
-                cost = match.iloc[0]["Cost"]
-                selling = match.iloc[0]["Selling"]
-                supplier = match.iloc[0]["LP Supplier"]
+                item_name = str(match.iloc[0]["Item Name"])
+                cost = float(match.iloc[0]["Cost"])
+                selling = float(match.iloc[0]["Selling"])
+                supplier = str(match.iloc[0]["LP Supplier"])
 
         col4, col5, col6, col7 = st.columns(4)
         with col4:
             item_name = st.text_input("Item Name", value=item_name)
         with col5:
-            cost = st.number_input("Cost", value=float(cost) if cost != "" else 0.0)
+            cost = st.number_input("Cost", value=cost if cost else 0.0)
         with col6:
-            selling = st.number_input("Selling Price", value=float(selling) if selling != "" else 0.0)
+            selling = st.number_input("Selling Price", value=selling if selling else 0.0)
         with col7:
             supplier = st.text_input("Supplier Name", value=supplier)
 
@@ -158,25 +137,28 @@ else:
         # ------------------------------------------
         # ADD TO LIST BUTTON
         # ------------------------------------------
-        submitted = st.form_submit_button("➕ Add to List")
+        add_to_list = st.form_submit_button("➕ Add to List")
 
-        if submitted:
-            st.session_state.submitted_items.append({
-                "Form Type": form_type,
-                "Barcode": barcode,
-                "Item Name": item_name,
-                "Qty": qty,
-                "Cost": cost,
-                "Selling": selling,
-                "Amount": cost * qty,
-                "GP%": round(gp, 2),
-                "Expiry": expiry.strftime("%d-%b-%y"),
-                "Supplier": supplier,
-                "Remarks": remarks,
-                "Outlet": outlet_name
-            })
-            st.success("✅ Added to list successfully!")
-            st.rerun()
+        if add_to_list:
+            if barcode and item_name:
+                st.session_state.submitted_items.append({
+                    "Form Type": form_type,
+                    "Barcode": barcode,
+                    "Item Name": item_name,
+                    "Qty": qty,
+                    "Cost": cost,
+                    "Selling": selling,
+                    "Amount": cost * qty,
+                    "GP%": round(gp, 2),
+                    "Expiry": expiry.strftime("%d-%b-%y"),
+                    "Supplier": supplier,
+                    "Remarks": remarks,
+                    "Outlet": outlet_name
+                })
+                st.success("✅ Added to list successfully!")
+                st.rerun()
+            else:
+                st.warning("⚠️ Please fill required fields before adding.")
 
     # ==========================================
     # DISPLAY SUBMITTED ITEMS
@@ -186,6 +168,21 @@ else:
         df = pd.DataFrame(st.session_state.submitted_items)
         st.dataframe(df, use_container_width=True)
 
-        if st.button("📤 Submit All (Demo)"):
-            st.success("✅ All data submitted to Google Sheet (demo only)")
-            st.session_state.submitted_items = []
+        colA, colB = st.columns([1, 1])
+        with colA:
+            if st.button("🧹 Clear List"):
+                st.session_state.submitted_items = []
+                st.rerun()
+        with colB:
+            if st.button("📤 Submit All (Demo)"):
+                st.success("✅ All data submitted to Google Sheet (demo only)")
+                st.session_state.submitted_items = []
+                st.rerun()
+
+    # ==========================================
+    # LOGOUT
+    # ==========================================
+    st.sidebar.button("🚪 Logout", on_click=lambda: [
+        st.session_state.update({"logged_in": False, "selected_outlet": None, "submitted_items": []}),
+        st.rerun()
+    ])
