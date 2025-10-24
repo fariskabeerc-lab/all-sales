@@ -61,15 +61,18 @@ else:
     st.markdown(f"<h2 style='text-align:center;'>🏪 {outlet_name} Dashboard</h2>", unsafe_allow_html=True)
 
     # =================================================
-    # Disable Enter key globally for all forms
+    # Disable Enter key globally for all input fields
     # =================================================
     st.markdown("""
         <script>
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Enter' && event.target.tagName === 'INPUT') {
-                event.preventDefault();
-                return false;
-            }
+        const forms = window.parent.document.querySelectorAll('form');
+        forms.forEach(form => {
+            form.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    return false;
+                }
+            });
         });
         </script>
     """, unsafe_allow_html=True)
@@ -104,8 +107,8 @@ else:
         # AUTO-FILL DETAILS BASED ON BARCODE
         # ------------------------------------------
         item_name = ""
-        cost = ""
-        selling = ""
+        cost = 0.0
+        selling = 0.0
         supplier = ""
 
         if barcode:
@@ -120,9 +123,9 @@ else:
         with col4:
             item_name = st.text_input("Item Name", value=item_name)
         with col5:
-            cost = st.number_input("Cost", value=cost if cost else 0.0)
+            st.number_input("Cost", value=cost, disabled=True)
         with col6:
-            selling = st.number_input("Selling Price", value=selling if selling else 0.0)
+            st.number_input("Selling Price", value=selling, disabled=True)
         with col7:
             supplier = st.text_input("Supplier Name", value=supplier)
 
