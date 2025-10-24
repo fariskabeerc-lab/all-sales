@@ -12,7 +12,7 @@ st.set_page_config(page_title="Outlet Form Dashboard", layout="wide")
 # ==============================
 @st.cache_data
 def load_item_data():
-    file_path = "your_excel_file.xlsx"  # 👈 put your Excel file path here
+    file_path = "alllist.xlsx"  # 👈 put your Excel file path here
     df = pd.read_excel(file_path)
     df.columns = df.columns.str.strip()  # clean column names
     return df
