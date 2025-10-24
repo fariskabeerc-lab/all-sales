@@ -60,23 +60,6 @@ else:
     outlet_name = st.session_state.selected_outlet
     st.markdown(f"<h2 style='text-align:center;'>🏪 {outlet_name} Dashboard</h2>", unsafe_allow_html=True)
 
-    # =================================================
-    # Disable Enter key globally for all input fields
-    # =================================================
-    st.markdown("""
-        <script>
-        const forms = window.parent.document.querySelectorAll('form');
-        forms.forEach(form => {
-            form.addEventListener('keydown', function(event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    return false;
-                }
-            });
-        });
-        </script>
-    """, unsafe_allow_html=True)
-
     # ==========================================
     # FORM SELECTION (LEFT SIDE)
     # ==========================================
@@ -92,7 +75,7 @@ else:
     # ==========================================
     # FORM UI
     # ==========================================
-    with st.form(f"{form_type}_form", clear_on_submit=True):
+    with st.form(f"{form_type}_form", clear_on_submit=False):  # important: clear_on_submit=False
         st.subheader(f"{form_type} Form")
 
         col1, col2, col3 = st.columns(3)
@@ -121,7 +104,7 @@ else:
 
         col4, col5, col6, col7 = st.columns(4)
         with col4:
-            item_name = st.text_input("Item Name", value=item_name)
+            item_name = st.text_input("Item Name", value=item_name, disabled=False)
         with col5:
             st.number_input("Cost", value=cost, disabled=True)
         with col6:
@@ -159,7 +142,8 @@ else:
                     "Outlet": outlet_name
                 })
                 st.success("✅ Added to list successfully!")
-                st.rerun()
+                # Reset barcode and remarks only
+                st.experimental_rerun()
             else:
                 st.warning("⚠️ Please fill required fields before adding.")
 
