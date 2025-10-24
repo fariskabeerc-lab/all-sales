@@ -159,17 +159,3 @@ else:
             if st.button("📤 Submit All (Demo)"):
                 st.success("✅ All data submitted to Google Sheet (demo only)")
                 st.session_state.submitted_items = []
-
-    # LOGOUT
-    st.sidebar.button("🚪 Logout", on_click=lambda: [
-        st.session_state.update({
-            "logged_in": False, 
-            "selected_outlet": None, 
-            "submitted_items": [], 
-            "barcode_input": "", 
-            "qty_input": 1, 
-            "expiry_input": datetime.now(),
-            "remarks_input": ""
-        }),
-        st.experimental_rerun()
-    ])
