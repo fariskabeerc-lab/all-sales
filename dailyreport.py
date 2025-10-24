@@ -30,14 +30,16 @@ outlets = [
 password = "123123"
 
 # Initialize session state variables
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-if "selected_outlet" not in st.session_state:
-    st.session_state.selected_outlet = None
-if "submitted_items" not in st.session_state:
-    st.session_state.submitted_items = []
-if "barcode_input" not in st.session_state:
-    st.session_state.barcode_input = ""
+for key in ["logged_in", "selected_outlet", "submitted_items", "barcode_input", "qty_input", "expiry_input", "remarks_input"]:
+    if key not in st.session_state:
+        if key == "submitted_items":
+            st.session_state[key] = []
+        elif key == "qty_input":
+            st.session_state[key] = 1
+        elif key == "expiry_input":
+            st.session_state[key] = datetime.now()
+        else:
+            st.session_state[key] = ""
 
 # ==========================================
 # LOGIN PAGE
@@ -68,7 +70,6 @@ else:
         "📋 Select Form Type",
         ["Expiry", "Damages", "Near Expiry"]
     )
-
     st.markdown("---")
 
     # ==============================
@@ -79,9 +80,11 @@ else:
         barcode = st.text_input("Barcode", value=st.session_state.barcode_input)
         st.session_state.barcode_input = barcode
     with col2:
-        qty = st.number_input("Qty [PCS]", min_value=1, value=1)
+        qty = st.number_input("Qty [PCS]", min_value=1, value=st.session_state.qty_input)
+        st.session_state.qty_input = qty
     with col3:
-        expiry = st.date_input("Expiry Date", datetime.now())
+        expiry = st.date_input("Expiry Date", st.session_state.expiry_input)
+        st.session_state.expiry_input = expiry
 
     # AUTO-FILL BASED ON BARCODE
     item_name = ""
@@ -109,7 +112,8 @@ else:
     gp = ((selling - cost) / cost * 100) if cost else 0
     st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
 
-    remarks = st.text_area("Remarks [if any]")
+    remarks = st.text_area("Remarks [if any]", value=st.session_state.remarks_input)
+    st.session_state.remarks_input = remarks
 
     # ==============================
     # ADD TO LIST BUTTON
@@ -131,7 +135,11 @@ else:
                 "Outlet": outlet_name
             })
             st.success("✅ Added to list successfully!")
-            st.session_state.barcode_input = ""  # clear barcode input
+            # CLEAR FORM INPUTS
+            st.session_state.barcode_input = ""
+            st.session_state.qty_input = 1
+            st.session_state.expiry_input = datetime.now()
+            st.session_state.remarks_input = ""
         else:
             st.warning("⚠️ Fill barcode and item before adding.")
 
@@ -154,6 +162,14 @@ else:
 
     # LOGOUT
     st.sidebar.button("🚪 Logout", on_click=lambda: [
-        st.session_state.update({"logged_in": False, "selected_outlet": None, "submitted_items": [], "barcode_input": ""}),
+        st.session_state.update({
+            "logged_in": False, 
+            "selected_outlet": None, 
+            "submitted_items": [], 
+            "barcode_input": "", 
+            "qty_input": 1, 
+            "expiry_input": datetime.now(),
+            "remarks_input": ""
+        }),
         st.experimental_rerun()
     ])
