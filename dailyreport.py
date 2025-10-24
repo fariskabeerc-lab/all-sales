@@ -1,136 +1,181 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime
 
-# =======================================
-# PAGE CONFIG
-# =======================================
-st.set_page_config(page_title="Outlet Dashboard", layout="wide")
+# ==============================
+# Page Config
+# ==============================
+st.set_page_config(page_title="Outlet Form Dashboard", layout="wide")
 
-# =======================================
-# OUTLET LOGIN DATA
-# =======================================
+# ==============================
+# Load Excel Data (for auto-fill)
+# ==============================
+@st.cache_data
+def load_item_data():
+    file_path = "alllist.xlsx"  # 👈 put your Excel file path here
+    df = pd.read_excel(file_path)
+    df.columns = df.columns.str.strip()  # clean column names
+    return df
+
+item_data = load_item_data()
+
+# ==============================
+# Outlet Login Setup
+# ==============================
 outlets = [
-    "Hilal", "Safa Super", "Azhar HP", "Azhar", "Blue Pearl", "Fida",
-    "Hadeqat", "Jais", "Sabah", "Sahat", "Shams salem", "Shams Liwan",
-    "Superstore", "Tay Tay", "Safa oudmehta", "Port saeed"
+    "Hilal", "Safa Super", "Azhar HP", "Azhar", "Blue Pearl", "Fida", "Hadeqat",
+    "Jais", "Sabah", "Sahat", "Shams salem", "Shams Liwan", "Superstore",
+    "Tay Tay", "Safa oudmehta", "Port saeed"
 ]
 password = "123123"
 
-# =======================================
-# LOAD ITEM DATA
-# =======================================
-@st.cache_data
-def load_data():
-    # 🟢 Replace with your actual Excel file path
-    df = pd.read_excel("alllist.xlsx")
-    df.columns = df.columns.str.strip()
-    return df
-
-item_data = load_data()
-
-# =======================================
-# SESSION STATE INIT
-# =======================================
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
-if "outlet" not in st.session_state:
-    st.session_state.outlet = None
-if "items" not in st.session_state:
-    st.session_state.items = []
+if "selected_outlet" not in st.session_state:
+    st.session_state.selected_outlet = None
 
-# =======================================
-# LOGIN PAGE
-# =======================================
 if not st.session_state.logged_in:
-    st.sidebar.header("🔐 Login")
+    st.title("🔐 Outlet Login")
+    username = st.text_input("Username", placeholder="Enter username")
+    outlet = st.selectbox("Select your outlet", outlets)
+    pwd = st.text_input("Password", type="password")
 
-    with st.sidebar.form("login_form"):
-        outlet = st.selectbox("Select Outlet", outlets)
-        pw = st.text_input("Password", type="password")
-        login_btn = st.form_submit_button("Login")
+    if st.button("Login"):
+        if username == "almadina" and pwd == password:
+            st.session_state.logged_in = True
+            st.session_state.selected_outlet = outlet
+            st.rerun()
+        else:
+            st.error("Invalid username or password")
 
-        if login_btn:
-            if pw == password:
-                st.session_state.logged_in = True
-                st.session_state.outlet = outlet
-                st.rerun()
-            else:
-                st.sidebar.error("❌ Incorrect password. Try again.")
+else:
+    # ==============================
+    # Main Dashboard
+    # ==============================
+    outlet_name = st.session_state.selected_outlet
+    st.markdown(f"<h2 style='text-align:center;'>🏪 {outlet_name} Dashboard</h2>", unsafe_allow_html=True)
 
-# =======================================
-# MAIN DASHBOARD
-# =======================================
-if st.session_state.logged_in:
-    st.title(f"🏪 {st.session_state.outlet} Dashboard")
+    # Full Screen Toggle
+    full_screen = st.sidebar.toggle("🖥️ Full Screen Mode")
 
-    with st.form("item_form"):
-        st.subheader("🧾 Add Item Details")
+    if full_screen:
+        hide_css = """
+        <style>
+        [data-testid="stAppViewContainer"] {padding:0; margin:0;}
+        [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stSidebar"] {display:none;}
+        html, body, .block-container {height:100%; width:100%; margin:0; padding:0;}
+        </style>
+        """
+        st.markdown(hide_css, unsafe_allow_html=True)
+    else:
+        show_css = """
+        <style>
+        [data-testid="stAppViewContainer"] {padding:1rem;}
+        [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stSidebar"] {display:block;}
+        </style>
+        """
+        st.markdown(show_css, unsafe_allow_html=True)
 
-        col1, col2, col3 = st.columns([1.5, 1.5, 1])
+    # ==============================
+    # Disable Enter Key in Forms (JS)
+    # ==============================
+    st.markdown("""
+        <script>
+        const forms = window.parent.document.querySelectorAll('form');
+        forms.forEach(form => {
+            form.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    return false;
+                }
+            });
+        });
+        </script>
+    """, unsafe_allow_html=True)
+
+    # ==============================
+    # Form Selection (on the left)
+    # ==============================
+    form_type = st.radio(
+        "📋 Select Form Type",
+        ["Expiry", "Damages", "Near Expiry"],
+        horizontal=False,
+        key="form_selector"
+    )
+
+    st.markdown("---")
+
+    # Initialize submission list
+    if "submitted_items" not in st.session_state:
+        st.session_state.submitted_items = []
+
+    # ==============================
+    # Form UI
+    # ==============================
+    with st.form(f"{form_type}_form", clear_on_submit=True):
+        st.subheader(f"{form_type} Form")
+
+        col1, col2, col3 = st.columns(3)
         with col1:
-            barcode = st.text_input("Item Barcode")
+            barcode = st.text_input("Barcode")
         with col2:
-            item_name = st.text_input("Item Name")
+            qty = st.number_input("Qty [PCS]", min_value=1, value=1)
         with col3:
-            supplier = st.text_input("LP Supplier")
+            expiry = st.date_input("Expiry Date", datetime.now())
 
-        col4, col5 = st.columns(2)
-        with col4:
-            cost = st.number_input("Cost", min_value=0.0, step=0.01)
-        with col5:
-            selling = st.number_input("Selling Price", min_value=0.0, step=0.01)
+        # Auto-fill based on barcode
+        item_name = ""
+        cost = ""
+        selling = ""
+        supplier = ""
 
-        # Auto-fill when barcode entered
         if barcode:
-            match = item_data[item_data["Item Bar Code"].astype(str) == barcode]
+            match = item_data[item_data["Item Bar Code"].astype(str) == str(barcode)]
             if not match.empty:
                 item_name = match.iloc[0]["Item Name"]
-                cost = float(match.iloc[0]["Cost"])
-                selling = float(match.iloc[0]["Selling"])
+                cost = match.iloc[0]["Cost"]
+                selling = match.iloc[0]["Selling"]
                 supplier = match.iloc[0]["LP Supplier"]
 
-        add_btn = st.form_submit_button("➕ Add to List")
+        col4, col5, col6, col7 = st.columns(4)
+        with col4:
+            item_name = st.text_input("Item Name", value=item_name)
+        with col5:
+            cost = st.number_input("Cost", value=float(cost) if cost != "" else 0.0)
+        with col6:
+            selling = st.number_input("Selling Price", value=float(selling) if selling != "" else 0.0)
+        with col7:
+            supplier = st.text_input("Supplier Name", value=supplier)
 
-        if add_btn:
-            if barcode and item_name:
-                st.session_state.items.append({
-                    "Barcode": barcode,
-                    "Item Name": item_name,
-                    "Supplier": supplier,
-                    "Cost": cost,
-                    "Selling": selling
-                })
-                st.success(f"✅ {item_name} added successfully!")
-                st.rerun()
-            else:
-                st.warning("⚠️ Please enter at least a barcode and item name.")
+        remarks = st.text_area("Remarks [if any]")
 
-    # =======================================
-    # DISPLAY ADDED ITEMS
-    # =======================================
-    if st.session_state.items:
-        st.subheader("📋 Added Items")
-        df = pd.DataFrame(st.session_state.items)
+        submitted = st.form_submit_button("➕ Add to List")
+
+        if submitted:
+            st.session_state.submitted_items.append({
+                "Form Type": form_type,
+                "Barcode": barcode,
+                "Item Name": item_name,
+                "Qty": qty,
+                "Cost": cost,
+                "Selling": selling,
+                "Amount": cost * qty,
+                "Expiry": expiry.strftime("%d-%b-%y"),
+                "Supplier": supplier,
+                "Remarks": remarks,
+                "Outlet": outlet_name
+            })
+            st.success("✅ Added to list successfully!")
+            st.rerun()
+
+    # ==============================
+    # Display Submitted Items
+    # ==============================
+    if st.session_state.submitted_items:
+        st.markdown("### 🧾 Items Added")
+        df = pd.DataFrame(st.session_state.submitted_items)
         st.dataframe(df, use_container_width=True)
 
-        colA, colB = st.columns(2)
-        with colA:
-            if st.button("🧹 Reset List"):
-                st.session_state.items = []
-                st.success("List cleared!")
-                st.rerun()
-        with colB:
-            st.download_button(
-                "💾 Download as Excel",
-                data=df.to_csv(index=False).encode('utf-8'),
-                file_name=f"{st.session_state.outlet}_Items.csv",
-                mime="text/csv"
-            )
-
-    # =======================================
-    # LOGOUT BUTTON
-    # =======================================
-    st.sidebar.button("🚪 Logout", on_click=lambda: [
-        st.session_state.update({"logged_in": False, "outlet": None, "items": []}),
-        st.rerun()
-    ])
+        if st.button("📤 Submit All (Demo)"):
+            st.success("✅ All data submitted to Google Sheet (demo only)")
+            st.session_state.submitted_items = []
