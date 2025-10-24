@@ -24,6 +24,8 @@ if "outlet" not in st.session_state:
     st.session_state.outlet = None
 if "submitted_data" not in st.session_state:
     st.session_state.submitted_data = []
+if "full_screen" not in st.session_state:
+    st.session_state.full_screen = False
 
 # ======================================
 # LOGIN PAGE
@@ -39,20 +41,15 @@ if not st.session_state.logged_in:
     username = st.text_input("👤 Username")
     password = st.text_input("🔒 Password", type="password")
 
-    login_success = False  # flag
-
     if st.button("Login"):
         if selected_outlet == "-- Select --":
             st.warning("Please select an outlet before logging in.")
         elif username.lower() == "almadina" and password == "123123":
-            login_success = True
+            st.session_state.logged_in = True
+            st.session_state.outlet = selected_outlet
+            st.success(f"✅ Logged in successfully! Outlet: {st.session_state.outlet}")
         else:
             st.error("Invalid username or password.")
-
-    if login_success:
-        st.session_state.logged_in = True
-        st.session_state.outlet = selected_outlet
-        st.success(f"✅ Logged in successfully! Outlet: {st.session_state.outlet}")
 
 # ======================================
 # DASHBOARD AFTER LOGIN
@@ -62,9 +59,6 @@ if st.session_state.logged_in and st.session_state.outlet:
     # FULL SCREEN TOGGLE
     # ======================================
     st.sidebar.subheader("⚙️ Settings")
-    if "full_screen" not in st.session_state:
-        st.session_state.full_screen = False
-
     toggle_fs = st.sidebar.checkbox("🖥️ Full Screen Mode", value=st.session_state.full_screen)
     st.session_state.full_screen = toggle_fs
 
@@ -102,20 +96,28 @@ if st.session_state.logged_in and st.session_state.outlet:
     )
 
     # ======================================
-    # FORM SELECTION
+    # FORM SELECTION ON LEFT SIDE
     # ======================================
-    st.subheader("📋 Select Form Type")
-    form_type = st.selectbox(
-        "Choose a form to fill",
-        ["Expiry", "Damage", "Near Expiry", "Other"]
-    )
+    left_col, right_col = st.columns([1, 3])
+    with left_col:
+        st.markdown("### 📋 Select Form Type")
+        form_type = st.selectbox(
+            "Form Type",
+            ["Expiry", "Damage", "Near Expiry", "Other"],
+            key="form_select"
+        )
+    with right_col:
+        st.markdown(
+            f"<div style='margin-top:2.3rem; font-size:1.1rem;'>Currently filling: <b>{form_type}</b></div>",
+            unsafe_allow_html=True
+        )
 
     # ======================================
     # FORM INPUT SECTION
     # ======================================
     st.markdown(
         """
-        <div style='background-color:#f9f9f9; padding:20px; border-radius:15px; box-shadow:0 0 10px rgba(0,0,0,0.1);'>
+        <div style='background-color:#f9f9f9; padding:20px; border-radius:15px; box-shadow:0 0 10px rgba(0,0,0,0.1); margin-top:10px;'>
         """,
         unsafe_allow_html=True
     )
