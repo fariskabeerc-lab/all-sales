@@ -2,26 +2,26 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-# ==============================
-# Page Config
-# ==============================
+# ==========================================
+# PAGE CONFIG
+# ==========================================
 st.set_page_config(page_title="Outlet Form Dashboard", layout="wide")
 
-# ==============================
-# Load Excel Data (for auto-fill)
-# ==============================
+# ==========================================
+# LOAD ITEM DATA (for auto-fill)
+# ==========================================
 @st.cache_data
 def load_item_data():
-    file_path = "alllist.xlsx"  # 👈 put your Excel file path here
+    file_path = "alllist.xlsx"  # 👈 replace with your Excel file path
     df = pd.read_excel(file_path)
-    df.columns = df.columns.str.strip()  # clean column names
+    df.columns = df.columns.str.strip()
     return df
 
 item_data = load_item_data()
 
-# ==============================
-# Outlet Login Setup
-# ==============================
+# ==========================================
+# LOGIN SYSTEM
+# ==========================================
 outlets = [
     "Hilal", "Safa Super", "Azhar HP", "Azhar", "Blue Pearl", "Fida", "Hadeqat",
     "Jais", "Sabah", "Sahat", "Shams salem", "Shams Liwan", "Superstore",
@@ -33,6 +33,8 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "selected_outlet" not in st.session_state:
     st.session_state.selected_outlet = None
+if "submitted_items" not in st.session_state:
+    st.session_state.submitted_items = []
 
 if not st.session_state.logged_in:
     st.title("🔐 Outlet Login")
@@ -46,16 +48,18 @@ if not st.session_state.logged_in:
             st.session_state.selected_outlet = outlet
             st.rerun()
         else:
-            st.error("Invalid username or password")
+            st.error("❌ Invalid username or password")
 
 else:
-    # ==============================
-    # Main Dashboard
-    # ==============================
+    # ==========================================
+    # MAIN DASHBOARD
+    # ==========================================
     outlet_name = st.session_state.selected_outlet
     st.markdown(f"<h2 style='text-align:center;'>🏪 {outlet_name} Dashboard</h2>", unsafe_allow_html=True)
 
-    # Full Screen Toggle
+    # ------------------------------
+    # FULL SCREEN TOGGLE
+    # ------------------------------
     full_screen = st.sidebar.toggle("🖥️ Full Screen Mode")
 
     if full_screen:
@@ -76,9 +80,7 @@ else:
         """
         st.markdown(show_css, unsafe_allow_html=True)
 
-    # ==============================
-    # Disable Enter Key in Forms (JS)
-    # ==============================
+    # Disable Enter key submission
     st.markdown("""
         <script>
         const forms = window.parent.document.querySelectorAll('form');
@@ -93,9 +95,9 @@ else:
         </script>
     """, unsafe_allow_html=True)
 
-    # ==============================
-    # Form Selection (on the left)
-    # ==============================
+    # ==========================================
+    # FORM SELECTION (LEFT SIDE)
+    # ==========================================
     form_type = st.radio(
         "📋 Select Form Type",
         ["Expiry", "Damages", "Near Expiry"],
@@ -105,13 +107,9 @@ else:
 
     st.markdown("---")
 
-    # Initialize submission list
-    if "submitted_items" not in st.session_state:
-        st.session_state.submitted_items = []
-
-    # ==============================
-    # Form UI
-    # ==============================
+    # ==========================================
+    # FORM UI
+    # ==========================================
     with st.form(f"{form_type}_form", clear_on_submit=True):
         st.subheader(f"{form_type} Form")
 
@@ -123,7 +121,9 @@ else:
         with col3:
             expiry = st.date_input("Expiry Date", datetime.now())
 
-        # Auto-fill based on barcode
+        # ------------------------------------------
+        # AUTO-FILL DETAILS BASED ON BARCODE
+        # ------------------------------------------
         item_name = ""
         cost = ""
         selling = ""
@@ -147,8 +147,17 @@ else:
         with col7:
             supplier = st.text_input("Supplier Name", value=supplier)
 
+        gp = 0.0
+        if cost > 0:
+            gp = ((selling - cost) / cost) * 100
+
+        st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
+
         remarks = st.text_area("Remarks [if any]")
 
+        # ------------------------------------------
+        # ADD TO LIST BUTTON
+        # ------------------------------------------
         submitted = st.form_submit_button("➕ Add to List")
 
         if submitted:
@@ -160,6 +169,7 @@ else:
                 "Cost": cost,
                 "Selling": selling,
                 "Amount": cost * qty,
+                "GP%": round(gp, 2),
                 "Expiry": expiry.strftime("%d-%b-%y"),
                 "Supplier": supplier,
                 "Remarks": remarks,
@@ -168,9 +178,9 @@ else:
             st.success("✅ Added to list successfully!")
             st.rerun()
 
-    # ==============================
-    # Display Submitted Items
-    # ==============================
+    # ==========================================
+    # DISPLAY SUBMITTED ITEMS
+    # ==========================================
     if st.session_state.submitted_items:
         st.markdown("### 🧾 Items Added")
         df = pd.DataFrame(st.session_state.submitted_items)
