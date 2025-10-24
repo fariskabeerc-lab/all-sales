@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import gspread
+from google.oauth2.service_account import Credentials
 
 # ==========================================
 # PAGE CONFIG
@@ -18,6 +20,28 @@ def load_item_data():
     return df
 
 item_data = load_item_data()
+
+# ==========================================
+# GOOGLE SHEETS CONNECTION
+# ==========================================
+def connect_to_gsheet():
+    credentials_dict = {
+      "type": "service_account",
+      "project_id": "madina-476107",
+      "private_key_id": "22bfbcd374b76734518df81884f1004011d54804",
+      "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDOIHqNEAQY/WMd\n6dTLDp8UD114ELMqjg8xdNWqM1qZKoR8+y7BzPGFAikFIxCztNDQ8GKW4tsxPxVg\nzjOLPffMPBC4shyBi1XmCmYmxy6dZcYcfUftV1ZdTsrJi+TUf/djLmrIyylpkJ9q\n01DKWVSMeIBKH1g5BDz4Ll3yL/NfjNCP1k/iCCy1ZlSBByiYZ9CXGs6rzRE9C3HT\n7hBV3dmRk3rhZLFSm3j5DFkzjrhTzA5CgAy5oivJuzCUwQkCCqjmINDV7WyyU6+u\ndV1Fow3Xrpo3n7x4Ds1QGG1PE+aBqhevskublbXLufU/ZtP0BeaF3OsTa/FHC9fV\nwfp1fA7nAgMBAAECggEAC3QHizYEHEVcEAnxnnTKBwnRhj3bTraFBpj41FO1KYSQ\nxwcH8pHKK7tSfywTHgEihzGMMNkbF9HrBK2AdLC1R55gyXpwFgyhcb5LLcVshCdn\nCic162yqalXZ87f3t40CuHqYSV7shqaYDQ3/07aB+aoqarPyKXzgTGP7KV1btwfY\n2R5nscop2YGgkZnX/UHCmyQ7HHi1NlVqnVmYHRvAhcndJKfyJgQ8IViui2exHQOe\nfCUATt2VB/31n6FhFSuUWbJlJK71BFeQA/YQoA3FxULt/f9dIxlqddIdQGzYOb1m\nAXDDngHB60JBNFxPIxScvVfd1Ns0D40hNqWbbxTVTQKBgQD90bJ9a1q6fPzfp2jL\nBXSEazVqUCwzxztFAErimUbARdefeQpoOmGaCyN/pjNxCNvKUbEstv4xPew2UUaP\nosve7ATkZCn7/XXdLL54WsXV0S+200+h9FRECak7thAeAZB50nKN0/+yLP8X8ss0\nCo7ZhpU1oNzom7nxIBGqEVZD6wKBgQDP5eCOtxU8QKyEndWClIy9C9C0sohjNFGs\nMV5kWJjP3Sim9j+VwpumFeODvnrpmkGsdZJrdgv+70je8gjsamljxoa4u5J2ND7q\n5j0gmCmc54ydPKNmgyCb0WDh6Lqf7lKl/sxxsfoypmpoao4XiU+x7P6VcexvJlUv\nzZGEQoZt9QKBgQCfA5rRHEqw/tDlxVnPp1FCDHBgdG3c2np1ViOUJva+SoM1s30j\noz+2ZDgPJq6fqC8aZ2eaXeKOMv8jYHPWVOVoeXDvLRlod3g54mhJuoSq2e0MmwIO\nsqWAIpVVhVA/nDdJOuDtnd1ZYPtHo6JOrjakbL5Z5LfBOp6ZQ8ANTeM/lQKBgFcm\nhXEuPJ+qeOeLBqMbxLfHCTGGmfgESayGcYxdO4n/qvf6yILuNrNz/5ENu5bLzHYQ\nP1X/AV5YTtLu4WDB5vYllfpA30/f7PQpmjxcrS0SP/b2IYVquLO5HQT2u60picn+\nOxP6SOkMrBSjfndNX3Q15i8dt8CMcC9+3F52SMY1AoGANWCnR99ZrfmlQEQbZ46Y\nS7sfEfVOH01uQZMzNdWOQ0aSNJCc+0QVAoDXLcCx7+0zyZWcTmCWXwpyfM5mG5Qe\nIlQnN6Fpuz323Ui/0dxz9VQ63jNM+X9cCn4ZryMqlsvRjvBkddAmswG8oLMwNoP/\ncKg6b7+wwb81269smHTOq7U=\n-----END PRIVATE KEY-----\n",
+      "client_email": "sheet-madina@madina-476107.iam.gserviceaccount.com",
+      "client_id": "111687925191106670207",
+      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+      "token_uri": "https://oauth2.googleapis.com/token",
+      "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+      "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sheet-madina%40madina-476107.iam.gserviceaccount.com",
+      "universe_domain": "googleapis.com"
+    }
+    creds = Credentials.from_service_account_info(credentials_dict, scopes=["https://www.googleapis.com/auth/spreadsheets"])
+    client = gspread.authorize(creds)
+    sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1BOGgBAEW2yvE4Cm9lCtASe_H7RD76GBPcVtRWWJ1nf0").sheet1
+    return sheet
 
 # ==========================================
 # LOGIN SYSTEM
@@ -160,7 +184,25 @@ else:
             if st.button("🧹 Clear List"):
                 st.session_state.submitted_items = []
         with colB:
-            if st.button("📤 Submit All (Demo)"):
-                st.success("✅ All data submitted to Google Sheet (demo only)")
-                st.session_state.submitted_items = []
+            if st.button("📤 Submit All"):
+                try:
+                    sheet = connect_to_gsheet()
+                    sheet.append_rows([list(row.values()) for row in st.session_state.submitted_items])
+                    st.success("✅ All data submitted to Google Sheet successfully!")
+                    st.session_state.submitted_items = []
+                except Exception as e:
+                    st.error(f"❌ Error submitting to Google Sheet: {e}")
 
+    # LOGOUT
+    st.sidebar.button("🚪 Logout", on_click=lambda: [
+        st.session_state.update({
+            "logged_in": False, 
+            "selected_outlet": None, 
+            "submitted_items": [], 
+            "barcode_input": "", 
+            "qty_input": 1, 
+            "expiry_input": datetime.now(),
+            "remarks_input": ""
+        }),
+        st.experimental_rerun()
+    ])
