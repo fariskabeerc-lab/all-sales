@@ -40,9 +40,9 @@ password = "123123"
 
 # Initialize session state variables
 for key in ["logged_in", "selected_outlet", "submitted_items",
-            "barcode_input",  # Input for barcode
+            "barcode_input",
             "qty_input", "expiry_input", "remarks_input",
-            "item_name_input", "supplier_input", # Used for auto-fill defaults
+            "item_name_input", "supplier_input", 
             "cost_input", "selling_input",
             "submitted_feedback"]:
     if key not in st.session_state:
@@ -62,7 +62,6 @@ def lookup_item_and_update_state():
     # Get the current value from the input widget
     barcode = st.session_state.barcode_input 
     if barcode and not item_data.empty:
-        # Ensure comparison is done on string types and stripped
         match = item_data[item_data["Item Bar Code"].astype(str).str.strip() == str(barcode).strip()]
         if not match.empty:
             st.session_state.item_name_input = str(match.iloc[0]["Item Name"])
@@ -79,6 +78,47 @@ def lookup_item_and_update_state():
     # Rerun is needed here to refresh the form fields with new session state defaults
     st.rerun() 
 # -------------------------------------------------------------
+
+# --- NEW: Form Submission Handler (Callback) ---
+def add_item_to_list(barcode, item_name, qty, cost, selling, expiry, supplier, remarks, form_type, outlet_name):
+    
+    if not barcode.strip() or not item_name.strip():
+        # Displaying an error from a callback is tricky; using an empty placeholder is cleaner
+        # but for demonstration, we rely on the check being visual before clicking.
+        # This will mainly prevent bad data from being added, but the visual warning 
+        # won't appear easily. A better check is done at the form level if possible.
+        return 
+
+    expiry_display = expiry.strftime("%d-%b-%y") if expiry else ""
+    gp = ((selling - cost) / cost * 100) if cost else 0
+
+    # Append the submitted data to session state
+    st.session_state.submitted_items.append({
+        "Form Type": form_type,
+        "Barcode": barcode.strip(),
+        "Item Name": item_name.strip(),
+        "Qty": qty,
+        "Cost": round(cost, 2),
+        "Selling": round(selling, 2),
+        "Amount": round(cost * qty, 2),
+        "GP%": round(gp, 2),
+        "Expiry": expiry_display,
+        "Supplier": supplier.strip(),
+        "Remarks": remarks.strip(),
+        "Outlet": outlet_name
+    })
+
+    # --- CLEAR ALL COLUMNS SAFELY ---
+    # Clear all related session state variables to reset the fields for the next entry
+    st.session_state.barcode_input = ""
+    st.session_state.item_name_input = ""
+    st.session_state.supplier_input = ""
+    st.session_state.cost_input = "0.0"
+    st.session_state.selling_input = "0.0"
+
+    # Show success message (will be visible in the next rerun)
+    st.toast("✅ Added to list successfully! The form has been cleared.")
+# -------------------------------------------------
 
 
 # ==========================================
@@ -113,20 +153,18 @@ else:
         # --- Barcode Input and Lookup Button (OUTSIDE MAIN FORM) ---
         col_bar, col_btn = st.columns([3, 1])
         with col_bar:
-             # This input is outside the main form so Enter doesn't submit the form
              st.text_input("Barcode", key="barcode_input", placeholder="Enter or scan barcode")
         
         with col_btn:
-            # Button to trigger the lookup function
             st.button("🔍 Lookup Item", on_click=lookup_item_and_update_state, use_container_width=True)
         
         st.markdown("---")
         # -----------------------------------------------------------
 
-        # --- Start of the Item Entry Form (All inputs inside for submission control) ---
+        # --- Start of the Item Entry Form ---
         with st.form("item_entry_form", clear_on_submit=True):
             
-            # Using internal keys for form widgets
+            # Form field variables (local to the form context)
             col1, col2 = st.columns(2)
             with col1:
                 qty = st.number_input("Qty [PCS]", min_value=1, value=st.session_state.qty_input, key="form_qty_input")
@@ -136,17 +174,14 @@ else:
                 else:
                     expiry = None
 
-            # Item details (auto-filled from session state defaults)
             col4, col5, col6, col7 = st.columns(4)
             with col4:
-                # Defaults from session state, allowing manual override
                 item_name = st.text_input("Item Name", value=st.session_state.item_name_input, key="form_item_name_input")
             with col5:
                 cost_str = st.text_input("Cost", value=st.session_state.cost_input, key="form_cost_input")
             with col6:
                 selling_str = st.text_input("Selling Price", value=st.session_state.selling_input, key="form_selling_input")
             with col7:
-                # Defaults from session state, allowing manual override
                 supplier = st.text_input("Supplier Name", value=st.session_state.supplier_input, key="form_supplier_input")
 
             # Try to convert cost and selling to float
@@ -154,58 +189,28 @@ else:
                 cost = float(cost_str)
             except ValueError:
                 cost = 0.0
-                st.error("Invalid Cost value. Using 0.0.")
             try:
                 selling = float(selling_str)
             except ValueError:
                 selling = 0.0
-                st.error("Invalid Selling Price value. Using 0.0.")
 
             gp = ((selling - cost) / cost * 100) if cost else 0
             st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
 
             remarks = st.text_area("Remarks [if any]", key="form_remarks_input")
 
-            # Form submission button - only this button submits the data.
-            submitted = st.form_submit_button("➕ Add to List", type="primary")
+            # Form submission button using the callback
+            st.form_submit_button(
+                "➕ Add to List", 
+                type="primary",
+                on_click=add_item_to_list,
+                # Pass all necessary current state/form values as arguments
+                args=(
+                    st.session_state.barcode_input, item_name, qty, cost, 
+                    selling, expiry, supplier, remarks, form_type, outlet_name
+                )
+            )
             # --- End of the Item Entry Form ---
-
-        # Logic for processing the submitted item
-        if submitted:
-            barcode = st.session_state.barcode_input # Get barcode from the input outside the form
-            if barcode.strip() and item_name.strip():
-                expiry_display = expiry.strftime("%d-%b-%y") if expiry else ""
-                
-                # Append the submitted data to session state
-                st.session_state.submitted_items.append({
-                    "Form Type": form_type,
-                    "Barcode": barcode.strip(),
-                    "Item Name": item_name.strip(),
-                    "Qty": qty,
-                    "Cost": round(cost, 2),
-                    "Selling": round(selling, 2),
-                    "Amount": round(cost * qty, 2),
-                    "GP%": round(gp, 2),
-                    "Expiry": expiry_display,
-                    "Supplier": supplier.strip(),
-                    "Remarks": remarks.strip(),
-                    "Outlet": outlet_name
-                })
-
-                st.success("✅ Added to list successfully! The form has been cleared.")
-                
-                # --- CLEAR ALL COLUMNS AS REQUESTED ---
-                # Clear all related session state variables to reset the fields for the next entry
-                st.session_state.barcode_input = ""
-                st.session_state.item_name_input = ""
-                st.session_state.supplier_input = ""
-                st.session_state.cost_input = "0.0"
-                st.session_state.selling_input = "0.0"
-                
-                # The form submission automatically triggers the rerun, applying the state changes.
-                # Do NOT call st.rerun() here to avoid the StreamlitAPIException.
-            else:
-                st.warning("⚠️ Fill barcode and item name before adding.")
 
 
         # Displaying and managing the list
@@ -219,7 +224,7 @@ else:
                 if st.button("📤 Submit All"):
                     st.success(f"✅ All {len(st.session_state.submitted_items)} items submitted for {outlet_name} (demo)")
                     st.session_state.submitted_items = []
-                    # Clear lookup state upon final submission as well
+                    # Clear state upon final submission
                     st.session_state.barcode_input = ""
                     st.session_state.item_name_input = ""
                     st.session_state.supplier_input = ""
@@ -276,3 +281,4 @@ else:
             if st.button("🗑 Clear All Feedback Records", type="primary"):
                 st.session_state.submitted_feedback = []
                 st.rerun()
+                
