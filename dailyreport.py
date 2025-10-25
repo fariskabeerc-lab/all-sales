@@ -36,7 +36,7 @@ for key in [
     "logged_in", "selected_outlet", "submitted_items",
     "barcode_input", "qty_input", "expiry_input", "remarks_input",
     "item_name", "cost", "selling", "supplier",
-    "customer_feedback", "page"
+    "page", "customer_feedback"
 ]:
     if key not in st.session_state:
         if key in ["submitted_items", "customer_feedback"]:
@@ -102,6 +102,7 @@ else:
         rating = st.slider("Rating", 1, 5, 3)
 
         if st.button("📤 Submit Feedback"):
+            # Save feedback in session (hidden, no display)
             st.session_state.customer_feedback.append({
                 "Customer Name": name,
                 "Feedback": feedback,
@@ -110,14 +111,9 @@ else:
                 "Date": datetime.now().strftime("%d-%b-%Y %H:%M")
             })
             st.success("✅ Feedback submitted successfully!")
-            st.experimental_rerun()
-
-        if st.session_state.customer_feedback:
-            st.markdown("### 🧾 Submitted Feedbacks")
-            df_feedback = pd.DataFrame(st.session_state.customer_feedback)
-            st.dataframe(df_feedback, use_container_width=True)
-
-        st.stop()  # Stops execution here, so Outlet Form inputs are not shown
+            clear_form()
+        
+        st.stop()  # Stop here to prevent outlet form from showing
 
     # =======================
     # OUTLET FORM PAGE
@@ -197,22 +193,6 @@ else:
         st.markdown("### 🧾 Items Added")
         df = pd.DataFrame(st.session_state.submitted_items)
         st.dataframe(df, use_container_width=True)
-
-        col_submit, col_delete = st.columns([1, 1])
-        with col_submit:
-            if st.button("📤 Submit All"):
-                st.success("✅ All data submitted (demo)")
-                st.session_state.submitted_items = []
-        with col_delete:
-            to_delete = st.selectbox(
-                "Select Item to Delete",
-                options=[f"{i+1}. {item['Item Name']}" for i, item in enumerate(st.session_state.submitted_items)]
-            )
-            if st.button("❌ Delete Selected"):
-                index = int(to_delete.split(".")[0]) - 1
-                st.session_state.submitted_items.pop(index)
-                st.success("✅ Item removed")
-                st.experimental_rerun()
 
     if st.button("🚪 Logout"):
         st.session_state.logged_in = False
