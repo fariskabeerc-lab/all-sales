@@ -34,8 +34,11 @@ password_manager = "1234512345"
 # ==========================================
 # SESSION VARIABLES
 # ==========================================
-for key in ["logged_in", "role", "selected_outlet", "submitted_items", "manager_form",
-            "barcode_input", "qty_input", "expiry_input", "remarks_input"]:
+default_keys = [
+    "logged_in", "role", "selected_outlet", "submitted_items", "manager_form",
+    "barcode_input", "qty_input", "expiry_input", "remarks_input"
+]
+for key in default_keys:
     if key not in st.session_state:
         if key in ["submitted_items", "manager_form"]:
             st.session_state[key] = []
@@ -52,12 +55,12 @@ for key in ["logged_in", "role", "selected_outlet", "submitted_items", "manager_
 if not st.session_state.logged_in:
     st.title("🔐 Login Page")
     role = st.radio("Login As:", ["Outlet", "Manager"])
-    username = st.text_input("Username")
+    username = st.text_input("Username", key="login_username")
 
     if role == "Outlet":
-        outlet = st.selectbox("Select your outlet", outlets)
-        pwd = st.text_input("Password", type="password")
-        if st.button("Login", key="login_outlet"):
+        outlet = st.selectbox("Select your outlet", outlets, key="login_outlet")
+        pwd = st.text_input("Password", type="password", key="login_pwd_outlet")
+        if st.button("Login", key="login_btn_outlet"):
             if username == "almadina" and pwd == password_outlet:
                 st.session_state.logged_in = True
                 st.session_state.role = "Outlet"
@@ -67,9 +70,9 @@ if not st.session_state.logged_in:
                 st.error("❌ Invalid username or password")
 
     elif role == "Manager":
-        manager = st.selectbox("Select your name", managers)
-        pwd = st.text_input("Password", type="password")
-        if st.button("Login", key="login_manager"):
+        manager = st.selectbox("Select your name", managers, key="login_manager")
+        pwd = st.text_input("Password", type="password", key="login_pwd_manager")
+        if st.button("Login", key="login_btn_manager"):
             if pwd == password_manager:
                 st.session_state.logged_in = True
                 st.session_state.role = "Manager"
@@ -86,21 +89,21 @@ elif st.session_state.role == "Outlet":
     st.markdown(f"<h2 style='text-align:center;'>🏪 {outlet_name} Dashboard</h2>", unsafe_allow_html=True)
 
     # FORM TYPE
-    form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"])
+    form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"], key="form_type")
     st.markdown("---")
 
     # FORM INPUTS
     col1, col2, col3 = st.columns(3)
     with col1:
-        barcode = st.text_input("Barcode", value=st.session_state.barcode_input)
+        barcode = st.text_input("Barcode", value=st.session_state.barcode_input, key="barcode_input_field")
         st.session_state.barcode_input = barcode
     with col2:
-        qty = st.number_input("Qty [PCS]", min_value=1, value=st.session_state.qty_input)
+        qty = st.number_input("Qty [PCS]", min_value=1, value=st.session_state.qty_input, key="qty_input_field")
         st.session_state.qty_input = qty
     with col3:
         expiry = None
         if form_type != "Damages":
-            expiry = st.date_input("Expiry Date", st.session_state.expiry_input)
+            expiry = st.date_input("Expiry Date", st.session_state.expiry_input, key="expiry_input_field")
             st.session_state.expiry_input = expiry
 
     # AUTO-FILL
@@ -115,18 +118,18 @@ elif st.session_state.role == "Outlet":
 
     col4, col5, col6, col7 = st.columns(4)
     with col4:
-        item_name = st.text_input("Item Name", value=item_name)
+        item_name = st.text_input("Item Name", value=item_name, key="item_name_field")
     with col5:
-        st.number_input("Cost", value=cost, disabled=True)
+        st.number_input("Cost", value=cost, disabled=True, key="cost_field")
     with col6:
-        st.number_input("Selling Price", value=selling, disabled=True)
+        st.number_input("Selling Price", value=selling, disabled=True, key="selling_field")
     with col7:
-        supplier = st.text_input("Supplier Name", value=supplier)
+        supplier = st.text_input("Supplier Name", value=supplier, key="supplier_field")
 
     gp = ((selling - cost) / cost * 100) if cost else 0
     st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
 
-    remarks = st.text_area("Remarks [if any]", value=st.session_state.remarks_input)
+    remarks = st.text_area("Remarks [if any]", value=st.session_state.remarks_input, key="remarks_field")
     st.session_state.remarks_input = remarks
 
     # ADD TO LIST
@@ -171,7 +174,8 @@ elif st.session_state.role == "Outlet":
         with col_delete:
             to_delete = st.selectbox(
                 "Select Item to Delete",
-                options=[f"{i+1}. {item['Item Name']}" for i, item in enumerate(st.session_state.submitted_items)]
+                options=[f"{i+1}. {item['Item Name']}" for i, item in enumerate(st.session_state.submitted_items)],
+                key="select_delete_item"
             )
             if st.button("❌ Delete Selected", key="delete_item"):
                 index = int(to_delete.split(".")[0]) - 1
@@ -189,10 +193,10 @@ elif st.session_state.role == "Outlet":
 elif st.session_state.role == "Manager":
     st.markdown("<h2 style='text-align:center;'>🧍 Manager Outlet Visit Checklist</h2>", unsafe_allow_html=True)
 
-    outlet_selected = st.selectbox("Select Outlet", outlets)
-    buyer_name = st.text_input("Buyer Name")
-    visit_date = st.date_input("Date", datetime.now())
-    managers_present = st.text_input("Managers Present")
+    outlet_selected = st.selectbox("Select Outlet", outlets, key="manager_outlet_select")
+    buyer_name = st.text_input("Buyer Name", key="manager_buyer")
+    visit_date = st.date_input("Date", datetime.now(), key="manager_date")
+    managers_present = st.text_input("Managers Present", key="manager_present")
 
     st.markdown("---")
     st.markdown("### ✅ Checklist Items")
@@ -234,7 +238,7 @@ elif st.session_state.role == "Manager":
         checklist_results[item] = st.radio(item, ["OK", "Not OK"], horizontal=True, key=f"chk_{item}")
 
     st.markdown("---")
-    additional_comments = st.text_area("📝 Additional Comments")
+    additional_comments = st.text_area("📝 Additional Comments", key="manager_comments")
 
     if st.button("📤 Submit Checklist", key="submit_checklist"):
         record = {
