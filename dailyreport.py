@@ -103,7 +103,7 @@ else:
     st.session_state.page = page_option
 
     # =======================
-    # CUSTOMER FEEDBACK PAGE
+    # CUSTOMER FEEDBACK PAGE WITH SLIDER
     # =======================
     if st.session_state.page == "Customer Feedback":
         st.markdown("### 📝 Customer Feedback")
@@ -112,23 +112,18 @@ else:
         name = st.text_input("Customer Name", value=st.session_state.feedback_name)
         feedback = st.text_area("Feedback / Comments", value=st.session_state.feedback_text)
 
-        # Emoji rating buttons with labels below
+        # Slider rating
         st.markdown("**Rating:**")
-        emojis = ["😡", "😕", "😐", "🙂", "😃"]
         labels = ["Very Bad", "Bad", "Neutral", "Good", "Excellent"]
-
-        cols = st.columns(len(emojis))
-        for i, col in enumerate(cols):
-            with col:
-                selected = st.session_state.feedback_rating == i + 1
-                size = 50 if selected else 40  # enlarge if selected
-                color = "orange" if selected else "black"
-                # Clicking the emoji directly sets the rating
-                if st.button(emojis[i], key=f"emoji_{i}"):
-                    st.session_state.feedback_rating = i + 1
-                st.markdown(f"<div style='text-align:center; font-size:14px'>{labels[i]}</div>", unsafe_allow_html=True)
-
-        st.markdown(f"**Selected Rating:** {labels[st.session_state.feedback_rating-1]}")
+        rating = st.slider(
+            "Select Rating",
+            min_value=1,
+            max_value=5,
+            value=st.session_state.feedback_rating,
+            format="%d"
+        )
+        st.session_state.feedback_rating = rating
+        st.markdown(f"**Selected Rating:** {labels[rating-1]}")
 
         if st.button("📤 Submit Feedback"):
             # Save feedback (demo mode)
