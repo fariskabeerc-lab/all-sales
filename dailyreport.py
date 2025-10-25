@@ -137,88 +137,91 @@ else:
 
             # Clear feedback form
             clear_feedback_form()
+
+            # Stop here to show cleared fields
             st.info("Feedback form cleared. You can enter a new feedback now.")
-        st.stop()  # Stop here so Outlet Form does not show
+            st.stop()
 
     # =======================
     # OUTLET FORM PAGE
     # =======================
-    form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"])
-    st.markdown("---")
+    if st.session_state.page == "Outlet Form":
+        form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"])
+        st.markdown("---")
 
-    # INPUTS
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        barcode = st.text_input("Barcode", value=st.session_state.barcode_input)
-        st.session_state.barcode_input = barcode
-    with col2:
-        qty = st.number_input("Qty [PCS]", min_value=1, value=st.session_state.qty_input)
-        st.session_state.qty_input = qty
-    with col3:
-        expiry = None
-        if form_type != "Damages":
-            expiry = st.date_input("Expiry Date", st.session_state.expiry_input)
-            st.session_state.expiry_input = expiry
+        # INPUTS
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            barcode = st.text_input("Barcode", value=st.session_state.barcode_input)
+            st.session_state.barcode_input = barcode
+        with col2:
+            qty = st.number_input("Qty [PCS]", min_value=1, value=st.session_state.qty_input)
+            st.session_state.qty_input = qty
+        with col3:
+            expiry = None
+            if form_type != "Damages":
+                expiry = st.date_input("Expiry Date", st.session_state.expiry_input)
+                st.session_state.expiry_input = expiry
 
-    # AUTO-FILL BASED ON BARCODE
-    if barcode:
-        match = item_data[item_data["Item Bar Code"].astype(str).str.strip() == str(barcode).strip()]
-        if not match.empty:
-            st.session_state.item_name = str(match.iloc[0]["Item Name"])
-            st.session_state.cost = float(match.iloc[0]["Cost"])
-            st.session_state.selling = float(match.iloc[0]["Selling"])
-            st.session_state.supplier = str(match.iloc[0]["LP Supplier"])
-        else:
-            st.session_state.item_name = ""
-            st.session_state.cost = 0.0
-            st.session_state.selling = 0.0
-            st.session_state.supplier = ""
+        # AUTO-FILL BASED ON BARCODE
+        if barcode:
+            match = item_data[item_data["Item Bar Code"].astype(str).str.strip() == str(barcode).strip()]
+            if not match.empty:
+                st.session_state.item_name = str(match.iloc[0]["Item Name"])
+                st.session_state.cost = float(match.iloc[0]["Cost"])
+                st.session_state.selling = float(match.iloc[0]["Selling"])
+                st.session_state.supplier = str(match.iloc[0]["LP Supplier"])
+            else:
+                st.session_state.item_name = ""
+                st.session_state.cost = 0.0
+                st.session_state.selling = 0.0
+                st.session_state.supplier = ""
 
-    # DISPLAY ITEM FIELDS
-    col4, col5, col6, col7 = st.columns(4)
-    with col4:
-        st.session_state.item_name = st.text_input("Item Name", value=st.session_state.item_name)
-    with col5:
-        st.number_input("Cost", value=st.session_state.cost, disabled=True)
-    with col6:
-        st.number_input("Selling Price", value=st.session_state.selling, disabled=True)
-    with col7:
-        st.session_state.supplier = st.text_input("Supplier Name", value=st.session_state.supplier)
+        # DISPLAY ITEM FIELDS
+        col4, col5, col6, col7 = st.columns(4)
+        with col4:
+            st.session_state.item_name = st.text_input("Item Name", value=st.session_state.item_name)
+        with col5:
+            st.number_input("Cost", value=st.session_state.cost, disabled=True)
+        with col6:
+            st.number_input("Selling Price", value=st.session_state.selling, disabled=True)
+        with col7:
+            st.session_state.supplier = st.text_input("Supplier Name", value=st.session_state.supplier)
 
-    gp = ((st.session_state.selling - st.session_state.cost) / st.session_state.cost * 100) if st.session_state.cost else 0
-    st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
+        gp = ((st.session_state.selling - st.session_state.cost) / st.session_state.cost * 100) if st.session_state.cost else 0
+        st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
 
-    remarks = st.text_area("Remarks [if any]", value=st.session_state.remarks_input)
-    st.session_state.remarks_input = remarks
+        remarks = st.text_area("Remarks [if any]", value=st.session_state.remarks_input)
+        st.session_state.remarks_input = remarks
 
-    # ADD TO LIST BUTTON
-    if st.button("➕ Add to List"):
-        if barcode and st.session_state.item_name:
-            st.session_state.submitted_items.append({
-                "Form Type": form_type,
-                "Barcode": barcode,
-                "Item Name": st.session_state.item_name,
-                "Qty": qty,
-                "Cost": st.session_state.cost,
-                "Selling": st.session_state.selling,
-                "Amount": st.session_state.cost * qty,
-                "GP%": round(gp, 2),
-                "Expiry": expiry.strftime("%d-%b-%y") if expiry else "",
-                "Supplier": st.session_state.supplier,
-                "Remarks": remarks,
-                "Outlet": outlet_name
-            })
-            st.success("✅ Added to list successfully!")
-            clear_outlet_form()
-        else:
-            st.warning("⚠️ Fill barcode and item before adding.")
+        # ADD TO LIST BUTTON
+        if st.button("➕ Add to List"):
+            if barcode and st.session_state.item_name:
+                st.session_state.submitted_items.append({
+                    "Form Type": form_type,
+                    "Barcode": barcode,
+                    "Item Name": st.session_state.item_name,
+                    "Qty": qty,
+                    "Cost": st.session_state.cost,
+                    "Selling": st.session_state.selling,
+                    "Amount": st.session_state.cost * qty,
+                    "GP%": round(gp, 2),
+                    "Expiry": expiry.strftime("%d-%b-%y") if expiry else "",
+                    "Supplier": st.session_state.supplier,
+                    "Remarks": remarks,
+                    "Outlet": outlet_name
+                })
+                st.success("✅ Added to list successfully!")
+                clear_outlet_form()
+            else:
+                st.warning("⚠️ Fill barcode and item before adding.")
 
-    # DISPLAY LIST
-    if st.session_state.submitted_items:
-        st.markdown("### 🧾 Items Added")
-        df = pd.DataFrame(st.session_state.submitted_items)
-        st.dataframe(df, use_container_width=True)
+        # DISPLAY LIST
+        if st.session_state.submitted_items:
+            st.markdown("### 🧾 Items Added")
+            df = pd.DataFrame(st.session_state.submitted_items)
+            st.dataframe(df, use_container_width=True)
 
-    if st.button("🚪 Logout"):
-        st.session_state.logged_in = False
-        st.experimental_rerun()
+        if st.button("🚪 Logout"):
+            st.session_state.logged_in = False
+            st.experimental_rerun()
