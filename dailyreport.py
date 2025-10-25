@@ -164,13 +164,12 @@ else:
                 value=st.session_state.barcode_value
             )
             
-            # This hidden button captures the Enter key press and runs the lookup
+            # FIX: Removed label_visibility="collapsed" to avoid TypeError.
+            # This visible button captures the Enter key press and runs the lookup.
             st.form_submit_button(
-                "Hidden Lookup Trigger", 
+                "Trigger Lookup (Press Enter)", 
                 on_click=lookup_item_and_update_state, 
-                help="Press Enter in the field above to look up item.", 
-                # This makes the button hidden/minimal while retaining functionality
-                label_visibility="collapsed"
+                help="Press Enter in the barcode field to look up item."
             )
 
         st.markdown("---")
