@@ -92,13 +92,13 @@ else:
     page_option = st.sidebar.radio("📌 Navigate", ["Outlet Form", "Customer Feedback"])
     st.session_state.page = page_option
 
-   # =======================
+# =======================
 # CUSTOMER FEEDBACK PAGE
 # =======================
 if st.session_state.page == "Customer Feedback":
     st.markdown("### 📝 Customer Feedback")
 
-    # Input fields
+    # Initialize session state for form
     if "feedback_name" not in st.session_state:
         st.session_state.feedback_name = ""
     if "feedback_text" not in st.session_state:
@@ -106,6 +106,7 @@ if st.session_state.page == "Customer Feedback":
     if "feedback_rating" not in st.session_state:
         st.session_state.feedback_rating = 3
 
+    # Input fields
     name = st.text_input("Customer Name", value=st.session_state.feedback_name)
     feedback = st.text_area("Feedback / Comments", value=st.session_state.feedback_text)
     rating = st.slider("Rating", 1, 5, value=st.session_state.feedback_rating)
@@ -116,18 +117,15 @@ if st.session_state.page == "Customer Feedback":
             "Customer Name": name,
             "Feedback": feedback,
             "Rating": rating,
-            "Outlet": outlet_name,
+            "Outlet": st.session_state.selected_outlet,
             "Date": datetime.now().strftime("%d-%b-%Y %H:%M")
         })
         st.success("✅ Feedback submitted successfully!")
 
-        # CLEAR FEEDBACK FORM
+        # CLEAR FEEDBACK FORM WITHOUT rerun
         st.session_state.feedback_name = ""
         st.session_state.feedback_text = ""
         st.session_state.feedback_rating = 3
-        st.experimental_rerun()  # refresh the page to reset fields
-
-    st.stop()  # Stop here so outlet form does not show
 
     # =======================
     # OUTLET FORM PAGE
