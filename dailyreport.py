@@ -85,16 +85,20 @@ elif st.session_state.role == "Outlet":
     form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"])
     st.markdown("---")
 
+    # Add a session key for input reset
+    if "input_reset" not in st.session_state:
+        st.session_state.input_reset = 0
+
     # INPUTS
     col1, col2, col3 = st.columns(3)
     with col1:
-        barcode = st.text_input("Barcode")
+        barcode = st.text_input("Barcode", key=f"barcode_{st.session_state.input_reset}")
     with col2:
-        qty = st.number_input("Qty [PCS]", min_value=1, value=1)
+        qty = st.number_input("Qty [PCS]", min_value=1, value=1, key=f"qty_{st.session_state.input_reset}")
     with col3:
         expiry = None
         if form_type != "Damages":
-            expiry = st.date_input("Expiry Date", datetime.now())
+            expiry = st.date_input("Expiry Date", datetime.now(), key=f"expiry_{st.session_state.input_reset}")
 
     # AUTO FILL
     item_name, cost, selling, supplier = "", 0.0, 0.0, ""
@@ -108,18 +112,18 @@ elif st.session_state.role == "Outlet":
 
     col4, col5, col6, col7 = st.columns(4)
     with col4:
-        item_name = st.text_input("Item Name", value=item_name)
+        item_name = st.text_input("Item Name", value=item_name, key=f"item_{st.session_state.input_reset}")
     with col5:
-        st.number_input("Cost", value=cost, disabled=True)
+        st.number_input("Cost", value=cost, disabled=True, key=f"cost_{st.session_state.input_reset}")
     with col6:
-        st.number_input("Selling Price", value=selling, disabled=True)
+        st.number_input("Selling Price", value=selling, disabled=True, key=f"sell_{st.session_state.input_reset}")
     with col7:
-        supplier = st.text_input("Supplier Name", value=supplier)
+        supplier = st.text_input("Supplier Name", value=supplier, key=f"supplier_{st.session_state.input_reset}")
 
     gp = ((selling - cost) / cost * 100) if cost else 0
     st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
 
-    remarks = st.text_area("Remarks [if any]")
+    remarks = st.text_area("Remarks [if any]", key=f"remarks_{st.session_state.input_reset}")
 
     # ADD TO LIST
     if st.button("➕ Add to List"):
@@ -139,6 +143,8 @@ elif st.session_state.role == "Outlet":
                 "Outlet": outlet_name
             })
             st.success("✅ Added to list successfully!")
+            st.session_state.input_reset += 1  # This clears the form by regenerating keys
+            st.experimental_rerun()
         else:
             st.warning("⚠️ Fill barcode and item before adding.")
 
