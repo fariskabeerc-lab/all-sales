@@ -3,9 +3,9 @@ import pandas as pd
 from datetime import datetime
 
 # ==========================================
-# PAGE CONFIG
+# PAGE CONFIG - FIXED TYPO HERE
 # ==========================================
-st.set_set_page_config(page_title="Outlet & Feedback Dashboard", layout="wide")
+st.set_page_config(page_title="Outlet & Feedback Dashboard", layout="wide")
 
 # ==========================================
 # LOAD ITEM DATA (for auto-fill)
@@ -38,7 +38,6 @@ outlets = [
 password = "123123"
 
 # Initialize session state variables
-# CRITICAL: We ensure all necessary state variables exist
 for key in ["logged_in", "selected_outlet", "submitted_items",
             "barcode_value", 
             "qty_input", "expiry_input", "remarks_input",
@@ -197,7 +196,7 @@ else:
         # -----------------------------------------------------------
 
         # --- Start of the Item Entry Form (Only submits on button click) ---
-        with st.form("item_entry_form", clear_on_submit=False): # clear_on_submit=False is safer for manual clearing
+        with st.form("item_entry_form", clear_on_submit=False): 
 
             # Form field variables (local to the form context)
             col1, col2 = st.columns(2)
