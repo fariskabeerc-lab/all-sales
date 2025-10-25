@@ -112,7 +112,7 @@ else:
         name = st.text_input("Customer Name", value=st.session_state.feedback_name)
         feedback = st.text_area("Feedback / Comments", value=st.session_state.feedback_text)
 
-        # Emoji rating interactive buttons
+        # Emoji rating buttons with labels below
         st.markdown("**Rating:**")
         emojis = ["😡", "😕", "😐", "🙂", "😃"]
         labels = ["Very Bad", "Bad", "Neutral", "Good", "Excellent"]
@@ -120,11 +120,13 @@ else:
         for i, col in enumerate(cols):
             if col.button(emojis[i], key=f"emoji_{i}"):
                 st.session_state.feedback_rating = i + 1
+            col.markdown(f"<div style='text-align:center'>{labels[i]}</div>", unsafe_allow_html=True)
 
-        # Display selected emoji larger
-        st.markdown(f"**Selected:** <span style='font-size:40px'>{emojis[st.session_state.feedback_rating-1]}</span> - {labels[st.session_state.feedback_rating-1]}", unsafe_allow_html=True)
+        # Display selected rating
+        st.markdown(f"**Selected Rating:** {labels[st.session_state.feedback_rating-1]}")
 
         if st.button("📤 Submit Feedback"):
+            # Save feedback (demo mode)
             st.session_state.customer_feedback.append({
                 "Customer Name": name,
                 "Feedback": feedback,
@@ -133,7 +135,10 @@ else:
                 "Date": datetime.now().strftime("%d-%b-%Y %H:%M")
             })
             st.success("✅ Feedback submitted successfully!")
+
+            # Clear form
             clear_feedback_form()
+            st.experimental_rerun()  # refresh page to reset form
 
         st.stop()  # Stop here so Outlet Form does not show
 
