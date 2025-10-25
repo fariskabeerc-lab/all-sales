@@ -40,7 +40,7 @@ password = "123123"
 
 # Initialize session state variables
 for key in ["logged_in", "selected_outlet", "submitted_items",
-            "barcode_input",
+            "barcode_value", # Holds the current barcode value for lookup
             "qty_input", "expiry_input", "remarks_input",
             "item_name_input", "supplier_input", 
             "cost_input", "selling_input",
@@ -58,22 +58,20 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
             st.session_state[key] = ""
 
 # ------------------------------------------------------------------
-# --- Auto-fill/Lookup Logic Function (Callable via barcode's on_change) ---
+# --- Lookup Logic Function (Callable via Lookup Form submission) ---
 # ------------------------------------------------------------------
 def lookup_item_and_update_state():
-    # Get the current value from the input widget
-    barcode = st.session_state.barcode_input 
+    # The barcode value is now retrieved from the submitted form's key
+    barcode = st.session_state.lookup_barcode_input
     
-    # Reset fields if the barcode field was cleared
     if not barcode:
         st.session_state.item_name_input = ""
         st.session_state.supplier_input = ""
         return
 
-    item_found = False
+    st.session_state.barcode_value = barcode
     
     if not item_data.empty:
-        # Ensure comparison is done on string types and stripped
         match = item_data[item_data["Item Bar Code"].astype(str).str.strip() == str(barcode).strip()]
         
         if not match.empty:
@@ -81,17 +79,11 @@ def lookup_item_and_update_state():
             st.session_state.item_name_input = str(match.iloc[0]["Item Name"])
             st.session_state.supplier_input = str(match.iloc[0]["LP Supplier"])
             st.toast("✅ Item details loaded.", icon="🔍")
-            item_found = True
         else:
             # Clear/set fields if not found
             st.session_state.item_name_input = ""
             st.session_state.supplier_input = ""
             st.toast("⚠️ Barcode not found. Manual entry required.", icon="⚠️")
-
-    # CRITICAL FIX: Explicitly call rerun only here. 
-    # This forces the app to update the form fields immediately after Enter is pressed on the barcode input.
-    if item_found:
-        st.rerun() 
 # ------------------------------------------------------------------
 
 # --- Form Submission Handler (Callback) ---
@@ -122,7 +114,7 @@ def add_item_to_list(barcode, item_name, qty, cost, selling, expiry, supplier, r
 
     # --- CLEAR ALL COLUMNS SAFELY ---
     # Clear all related session state variables to reset the fields for the next entry
-    st.session_state.barcode_input = ""
+    st.session_state.barcode_value = ""
     st.session_state.item_name_input = ""
     st.session_state.supplier_input = ""
     st.session_state.cost_input = "0.0"
@@ -161,14 +153,21 @@ else:
         form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"])
         st.markdown("---")
 
-        # --- Barcode Input (OUTSIDE MAIN FORM) ---
-        # The key to instant auto-fill: on_change triggers lookup and rerun after Enter/Scan
-        st.text_input("Barcode", key="barcode_input", placeholder="Enter or scan barcode", on_change=lookup_item_and_update_state)
+        # --- Dedicated Lookup Form (Enter/Scan instantly updates state) ---
+        with st.form("barcode_lookup_form", clear_on_submit=False):
+            st.text_input(
+                "Barcode", 
+                key="lookup_barcode_input", 
+                placeholder="Enter or scan barcode and press Enter",
+                value=st.session_state.barcode_value
+            )
+            # This hidden button makes the Enter key submit this form
+            st.form_submit_button("Hidden Lookup Trigger", on_click=lookup_item_and_update_state, help="Press Enter in the field above to look up item.", type="secondary", use_container_width=True)
         
         st.markdown("---")
         # -----------------------------------------------------------
 
-        # --- Start of the Item Entry Form ---
+        # --- Start of the Item Entry Form (Clears on submit) ---
         with st.form("item_entry_form", clear_on_submit=True):
             
             # Form field variables (local to the form context)
@@ -183,14 +182,14 @@ else:
 
             col4, col5, col6, col7 = st.columns(4)
             with col4:
-                # Defaults from session state, updated by the barcode input's on_change
+                # Defaults from session state, updated by the barcode input's lookup
                 item_name = st.text_input("Item Name", value=st.session_state.item_name_input, key="form_item_name_input")
             with col5:
                 cost_str = st.text_input("Cost", value=st.session_state.cost_input, key="form_cost_input")
             with col6:
                 selling_str = st.text_input("Selling Price", value=st.session_state.selling_input, key="form_selling_input")
             with col7:
-                # Defaults from session state, updated by the barcode input's on_change
+                # Defaults from session state, updated by the barcode input's lookup
                 supplier = st.text_input("Supplier Name", value=st.session_state.supplier_input, key="form_supplier_input")
 
             # Try to convert cost and selling to float
@@ -213,9 +212,9 @@ else:
                 "➕ Add to List", 
                 type="primary",
                 on_click=add_item_to_list,
-                # Pass all necessary current state/form values as arguments
+                # Pass barcode value from session state
                 args=(
-                    st.session_state.barcode_input, item_name, qty, cost, 
+                    st.session_state.barcode_value, item_name, qty, cost, 
                     selling, expiry, supplier, remarks, form_type, outlet_name
                 )
             )
@@ -235,7 +234,7 @@ else:
                     st.success(f"✅ All {len(st.session_state.submitted_items)} items submitted for {outlet_name} (demo). Resetting.")
                     st.session_state.submitted_items = []
                     # Clear state upon final submission
-                    st.session_state.barcode_input = ""
+                    st.session_state.barcode_value = ""
                     st.session_state.item_name_input = ""
                     st.session_state.supplier_input = ""
                     st.session_state.cost_input = "0.0"
