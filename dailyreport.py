@@ -8,7 +8,7 @@ from datetime import datetime
 st.set_page_config(page_title="Outlet Dashboard", layout="wide")
 
 # ==========================================
-# LOAD ITEM DATA (for auto-fill)
+# LOAD ITEM DATA
 # ==========================================
 @st.cache_data
 def load_item_data():
@@ -56,7 +56,7 @@ for key in [
             st.session_state[key] = ""
 
 # ==========================================
-# HELPER FUNCTION TO CLEAR FORM
+# HELPER FUNCTIONS
 # ==========================================
 def clear_form():
     st.session_state.barcode_input = ""
@@ -90,7 +90,7 @@ if not st.session_state.logged_in:
             st.error("❌ Invalid username or password")
 
 # ==========================================
-# DASHBOARD PAGES
+# DASHBOARD
 # ==========================================
 else:
     outlet_name = st.session_state.selected_outlet
@@ -102,38 +102,40 @@ else:
     page_option = st.sidebar.radio("📌 Navigate", ["Outlet Form", "Customer Feedback"])
     st.session_state.page = page_option
 
-   # =======================
-# CUSTOMER FEEDBACK PAGE
-# =======================
-if st.session_state.page == "Customer Feedback":
-    st.markdown("### 📝 Customer Feedback")
+    # =======================
+    # CUSTOMER FEEDBACK PAGE
+    # =======================
+    if st.session_state.page == "Customer Feedback":
+        st.markdown("### 📝 Customer Feedback")
 
-    # Input fields
-    name = st.text_input("Customer Name", value=st.session_state.feedback_name)
-    feedback = st.text_area("Feedback / Comments", value=st.session_state.feedback_text)
+        # Input fields
+        name = st.text_input("Customer Name", value=st.session_state.feedback_name)
+        feedback = st.text_area("Feedback / Comments", value=st.session_state.feedback_text)
 
-    # Emoji-based rating
-    emojis = ["😡", "😕", "😐", "🙂", "😃"]
-    st.markdown("**Rating:**")
-    rating = st.radio("", emojis, index=st.session_state.feedback_rating - 1, horizontal=True)
-    rating_value = emojis.index(rating) + 1  # convert emoji selection to numeric value
+        # Emoji rating interactive buttons
+        st.markdown("**Rating:**")
+        emojis = ["😡", "😕", "😐", "🙂", "😃"]
+        labels = ["Very Bad", "Bad", "Neutral", "Good", "Excellent"]
+        cols = st.columns(len(emojis))
+        for i, col in enumerate(cols):
+            if col.button(emojis[i], key=f"emoji_{i}"):
+                st.session_state.feedback_rating = i + 1
 
-    if st.button("📤 Submit Feedback"):
-        # Save feedback (hidden, not displayed)
-        st.session_state.customer_feedback.append({
-            "Customer Name": name,
-            "Feedback": feedback,
-            "Rating": rating_value,
-            "Outlet": st.session_state.selected_outlet,
-            "Date": datetime.now().strftime("%d-%b-%Y %H:%M")
-        })
-        st.success("✅ Feedback submitted successfully!")
+        # Display selected emoji larger
+        st.markdown(f"**Selected:** <span style='font-size:40px'>{emojis[st.session_state.feedback_rating-1]}</span> - {labels[st.session_state.feedback_rating-1]}", unsafe_allow_html=True)
 
-        # CLEAR FEEDBACK FORM
-        st.session_state.feedback_name = ""
-        st.session_state.feedback_text = ""
-        st.session_state.feedback_rating = 3
+        if st.button("📤 Submit Feedback"):
+            st.session_state.customer_feedback.append({
+                "Customer Name": name,
+                "Feedback": feedback,
+                "Rating": labels[st.session_state.feedback_rating-1],
+                "Outlet": outlet_name,
+                "Date": datetime.now().strftime("%d-%b-%Y %H:%M")
+            })
+            st.success("✅ Feedback submitted successfully!")
+            clear_feedback_form()
 
+        st.stop()  # Stop here so Outlet Form does not show
 
     # =======================
     # OUTLET FORM PAGE
