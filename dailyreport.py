@@ -3,8 +3,9 @@ import pandas as pd
 from datetime import datetime
 
 # ==========================================
-# PAGE CONFIG - FIXED TYPO HERE
+# PAGE CONFIG
 # ==========================================
+# Corrected the typo: st.set_page_config
 st.set_page_config(page_title="Outlet & Feedback Dashboard", layout="wide")
 
 # ==========================================
@@ -125,13 +126,24 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
         "Outlet": outlet_name
     })
 
-    # --- CLEAR ALL COLUMNS SAFELY ---
-    st.session_state.barcode_value = ""
-    st.session_state.item_name_input = ""
-    st.session_state.supplier_input = ""
-    st.session_state.cost_input = "0.0"
-    st.session_state.selling_input = "0.0"
-    st.session_state.qty_input = 1 # Reset Quantity input
+    # --- CRITICAL FIX: CLEAR ALL COLUMNS SAFELY ---
+    st.session_state.barcode_value = ""          # Clears the Barcode input in the lookup form
+    st.session_state.item_name_input = ""        # Clears the Item Name input
+    st.session_state.supplier_input = ""         # Clears the Supplier Name input
+    st.session_state.cost_input = "0.0"          # Clears Cost
+    st.session_state.selling_input = "0.0"       # Clears Selling Price
+    st.session_state.qty_input = 1               # Resets Quantity
+    st.session_state.remarks_input = ""          # Clears Remarks
+
+    # Also clear the specific form keys to ensure a clean slate on rerun
+    # (Though the main input keys above should handle it for the next run)
+    if 'form_item_name_input' in st.session_state: del st.session_state['form_item_name_input']
+    if 'form_supplier_input' in st.session_state: del st.session_state['form_supplier_input']
+    if 'form_cost_input' in st.session_state: del st.session_state['form_cost_input']
+    if 'form_selling_input' in st.session_state: del st.session_state['form_selling_input']
+    if 'form_qty_input' in st.session_state: del st.session_state['form_qty_input']
+    if 'form_remarks_input' in st.session_state: del st.session_state['form_remarks_input']
+
 
     st.toast("✅ Added to list successfully! The form has been cleared.", icon="➕")
     return True
