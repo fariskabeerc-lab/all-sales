@@ -15,15 +15,14 @@ def load_item_data():
     file_path = "alllist.xlsx"
     try:
         df = pd.read_excel(file_path)
+        # Ensure column names are clean
         df.columns = df.columns.str.strip()
         return df
     except FileNotFoundError:
-        st.error(f"⚠️ Data file not found: {file_path}. Using mock data for demonstration.")
-        return pd.DataFrame({
-            "Item Bar Code": ["123456789012", "987654321098"],
-            "Item Name": ["Mock Milk 1L", "Mock Bread Loaf"],
-            "LP Supplier": ["Dairy King Co.", "Bakery Goods Ltd."],
-        })
+        # Display the actual error if the file isn't found
+        st.error(f"⚠️ Data file not found: {file_path}. Please ensure the file is in the application directory.")
+        # Return an empty DataFrame so the application doesn't crash
+        return pd.DataFrame()
 
 item_data = load_item_data()
 
@@ -39,9 +38,9 @@ password = "123123"
 
 # Initialize session state variables
 for key in ["logged_in", "selected_outlet", "submitted_items",
-             "barcode_value",  # Used to store the currently scanned/typed barcode
+             "barcode_value", 
              "qty_input", "expiry_input", "remarks_input",
-             "item_name_input", "supplier_input",  # Used for auto-fill/manual typing
+             "item_name_input", "supplier_input", 
              "cost_input", "selling_input",
              "submitted_feedback"]:
     if key not in st.session_state:
@@ -60,7 +59,7 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
 # --- Lookup Logic Function (Callback for Barcode Form) ---
 # ------------------------------------------------------------------
 def lookup_item_and_update_state():
-    # Retrieve the value from the submitted form's key (barcode_lookup_form's text_input)
+    # Retrieve the value from the submitted form's key
     barcode = st.session_state.lookup_barcode_input
     
     if not barcode:
@@ -84,19 +83,26 @@ def lookup_item_and_update_state():
             st.session_state.supplier_input = str(match.iloc[0]["LP Supplier"])
             st.toast("✅ Item details loaded.", icon="🔍")
         else:
-            # Clear auto-filled fields if barcode is new/unknown
+            # Update the specific message when item is not found
             st.session_state.item_name_input = ""
             st.session_state.supplier_input = ""
             st.session_state.cost_input = "0.0"
             st.session_state.selling_input = "0.0"
-            st.toast("⚠️ Barcode not found. Manual entry required.", icon="⚠️")
+            st.toast("⚠️ Barcode not found. Type name and details manually.", icon="⚠️")
+    else:
+         # Message for when the data file itself is empty/missing
+         st.session_state.item_name_input = ""
+         st.session_state.supplier_input = ""
+         st.session_state.cost_input = "0.0"
+         st.session_state.selling_input = "0.0"
+         st.toast("⚠️ Item data is empty. Type name and details manually.", icon="⚠️")
     
     # CRITICAL: Force a rerun here so the main form reloads with the new state values
     st.rerun() 
 # ------------------------------------------------------------------
 
 # -------------------------------------------------
-# --- Main Form Submission Handler ---
+# --- Main Form Submission Handler (Handles Clearing) ---
 # -------------------------------------------------
 def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, supplier, remarks, form_type, outlet_name):
     
@@ -134,16 +140,14 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
 
     # --- CRITICAL FIX: CLEAR ALL COLUMNS SAFELY ---
     # Clear the generic session state keys that the main form uses for its 'value'
-    # This is exactly how the customer feedback form achieves clearing (by resetting inputs
-    # through the session state keys they are initialized with, followed by a rerun).
-    st.session_state.barcode_value = ""          # Clears the Barcode input in the lookup form
-    st.session_state.item_name_input = ""        # Clears the Item Name input
-    st.session_state.supplier_input = ""         # Clears the Supplier Name input
-    st.session_state.cost_input = "0.0"          # Clears Cost
-    st.session_state.selling_input = "0.0"       # Clears Selling Price
-    st.session_state.qty_input = 1               # Resets Quantity
-    st.session_state.remarks_input = ""          # Clears Remarks
-    st.session_state.expiry_input = datetime.now().date() # Resets Expiry Date
+    st.session_state.barcode_value = ""          
+    st.session_state.item_name_input = ""        
+    st.session_state.supplier_input = ""         
+    st.session_state.cost_input = "0.0"          
+    st.session_state.selling_input = "0.0"       
+    st.session_state.qty_input = 1               
+    st.session_state.remarks_input = ""          
+    st.session_state.expiry_input = datetime.now().date() 
     
     st.toast("✅ Added to list successfully! The form has been cleared.", icon="➕")
     return True
@@ -171,8 +175,8 @@ else:
     # Logout button
     if st.sidebar.button("Logout 🚪", type="secondary"):
         st.session_state.logged_in = False
-        st.session_state.submitted_items = [] # Clear the list on logout
-        st.session_state.submitted_feedback = [] # Clear feedback on logout
+        st.session_state.submitted_items = [] 
+        st.session_state.submitted_feedback = [] 
         st.rerun()
 
     page = st.sidebar.radio("📌 Select Page", ["Outlet Dashboard", "Customer Feedback"])
@@ -257,7 +261,7 @@ else:
             # Value initialized from generic state variable
             remarks = st.text_area("Remarks [if any]", value=st.session_state.remarks_input, key="form_remarks_input")
 
-            # Form submission button (NO on_click)
+            # Form submission button 
             submitted_item = st.form_submit_button(
                 "➕ Add to List", 
                 type="primary",
@@ -271,7 +275,7 @@ else:
             # We pass the values from the internal form state keys.
             success = process_item_entry(
                 # Get current values from form state keys
-                st.session_state.barcode_value, # Barcode is from the lookup form's persistent state
+                st.session_state.barcode_value, 
                 st.session_state.form_item_name_input, 
                 st.session_state.form_qty_input, 
                 st.session_state.form_cost_input, 
@@ -295,8 +299,8 @@ else:
             with col_submit:
                 if st.button("📤 Submit All", type="primary"):
                     st.success(f"✅ All {len(st.session_state.submitted_items)} items submitted for {outlet_name} (demo). Resetting.")
+                    # Clear state upon final submission (clears form on rerun)
                     st.session_state.submitted_items = []
-                    # Clear state upon final submission
                     st.session_state.barcode_value = ""
                     st.session_state.item_name_input = ""
                     st.session_state.supplier_input = ""
@@ -307,11 +311,9 @@ else:
             with col_delete:
                 options = [f"{i+1}. {item['Item Name']} ({item['Qty']} pcs)" for i, item in enumerate(st.session_state.submitted_items)]
                 if options:
-                    # Added a default None option to prevent immediate selection
                     to_delete = st.selectbox("Select Item to Delete", ["Select item to remove..."] + options)
                     if to_delete != "Select item to remove...":
                         if st.button("❌ Delete Selected", type="secondary"):
-                            # Index is based on the options list (1-based), so we subtract 1 for the list index
                             index = options.index(to_delete) 
                             st.session_state.submitted_items.pop(index)
                             st.success("✅ Item removed")
@@ -343,7 +345,6 @@ else:
                     "Feedback": feedback,
                     "Submitted At": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 })
-                # The clear_on_submit=True in the form handles the clearing of inputs here
                 st.success("✅ Feedback submitted successfully! The form has been cleared.")
             else:
                 st.error("⚠️ Please fill Customer Name and Feedback before submitting.")
