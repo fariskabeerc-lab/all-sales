@@ -18,7 +18,6 @@ def load_item_data():
         df.columns = df.columns.str.strip()
         return df
     except FileNotFoundError:
-        # Create mock data if the file is missing to ensure the app runs
         st.error(f"⚠️ Data file not found: {file_path}. Using mock data for demonstration.")
         return pd.DataFrame({
             "Item Bar Code": ["123456789012", "987654321098"],
@@ -40,7 +39,7 @@ password = "123123"
 
 # Initialize session state variables
 for key in ["logged_in", "selected_outlet", "submitted_items",
-            "barcode_value", # Holds the current barcode value for lookup
+            "barcode_value", 
             "qty_input", "expiry_input", "remarks_input",
             "item_name_input", "supplier_input", 
             "cost_input", "selling_input",
@@ -61,17 +60,19 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
 # --- Lookup Logic Function (Callable via Lookup Form submission) ---
 # ------------------------------------------------------------------
 def lookup_item_and_update_state():
-    # The barcode value is now retrieved from the submitted form's key
+    # Retrieve the value from the submitted form's key
     barcode = st.session_state.lookup_barcode_input
     
     if not barcode:
         st.session_state.item_name_input = ""
         st.session_state.supplier_input = ""
+        st.session_state.barcode_value = ""
         return
 
-    st.session_state.barcode_value = barcode
+    st.session_state.barcode_value = barcode 
     
     if not item_data.empty:
+        # Match barcode, ensuring string comparison
         match = item_data[item_data["Item Bar Code"].astype(str).str.strip() == str(barcode).strip()]
         
         if not match.empty:
@@ -96,7 +97,6 @@ def add_item_to_list(barcode, item_name, qty, cost, selling, expiry, supplier, r
     expiry_display = expiry.strftime("%d-%b-%y") if expiry else ""
     gp = ((selling - cost) / cost * 100) if cost else 0
 
-    # Append the submitted data to session state
     st.session_state.submitted_items.append({
         "Form Type": form_type,
         "Barcode": barcode.strip(),
@@ -113,7 +113,6 @@ def add_item_to_list(barcode, item_name, qty, cost, selling, expiry, supplier, r
     })
 
     # --- CLEAR ALL COLUMNS SAFELY ---
-    # Clear all related session state variables to reset the fields for the next entry
     st.session_state.barcode_value = ""
     st.session_state.item_name_input = ""
     st.session_state.supplier_input = ""
@@ -154,16 +153,26 @@ else:
         st.markdown("---")
 
         # --- Dedicated Lookup Form (Enter/Scan instantly updates state) ---
+        # The Enter key in the st.text_input below will submit this form.
         with st.form("barcode_lookup_form", clear_on_submit=False):
+            
+            # Barcode input
             st.text_input(
-                "Barcode", 
+                "Barcode",
                 key="lookup_barcode_input", 
                 placeholder="Enter or scan barcode and press Enter",
                 value=st.session_state.barcode_value
             )
-            # This hidden button makes the Enter key submit this form
-            st.form_submit_button("Hidden Lookup Trigger", on_click=lookup_item_and_update_state, help="Press Enter in the field above to look up item.", type="secondary", use_container_width=True)
-        
+            
+            # This hidden button captures the Enter key press and runs the lookup
+            st.form_submit_button(
+                "Hidden Lookup Trigger", 
+                on_click=lookup_item_and_update_state, 
+                help="Press Enter in the field above to look up item.", 
+                # This makes the button hidden/minimal while retaining functionality
+                label_visibility="collapsed"
+            )
+
         st.markdown("---")
         # -----------------------------------------------------------
 
