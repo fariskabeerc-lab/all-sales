@@ -58,7 +58,7 @@ for key in [
 # ==========================================
 # HELPER FUNCTIONS
 # ==========================================
-def clear_form():
+def clear_outlet_form():
     st.session_state.barcode_input = ""
     st.session_state.qty_input = 1
     st.session_state.expiry_input = datetime.now()
@@ -103,7 +103,7 @@ else:
     st.session_state.page = page_option
 
     # =======================
-    # CUSTOMER FEEDBACK PAGE WITH SLIDER
+    # CUSTOMER FEEDBACK PAGE
     # =======================
     if st.session_state.page == "Customer Feedback":
         st.markdown("### 📝 Customer Feedback")
@@ -112,33 +112,32 @@ else:
         name = st.text_input("Customer Name", value=st.session_state.feedback_name)
         feedback = st.text_area("Feedback / Comments", value=st.session_state.feedback_text)
 
-        # Slider rating
+        # Slider rating (1–5)
         st.markdown("**Rating:**")
         labels = ["Very Bad", "Bad", "Neutral", "Good", "Excellent"]
         rating = st.slider(
             "Select Rating",
             min_value=1,
             max_value=5,
-            value=st.session_state.feedback_rating,
-            format="%d"
+            value=st.session_state.feedback_rating
         )
         st.session_state.feedback_rating = rating
         st.markdown(f"**Selected Rating:** {labels[rating-1]}")
 
         if st.button("📤 Submit Feedback"):
-            # Save feedback (demo mode)
+            # Save feedback
             st.session_state.customer_feedback.append({
                 "Customer Name": name,
                 "Feedback": feedback,
-                "Rating": labels[st.session_state.feedback_rating-1],
+                "Rating": labels[rating-1],
                 "Outlet": outlet_name,
                 "Date": datetime.now().strftime("%d-%b-%Y %H:%M")
             })
             st.success("✅ Feedback submitted successfully!")
 
-            # Clear form
+            # Clear feedback form
             clear_feedback_form()
-            st.experimental_rerun()  # refresh page to reset form
+            st.experimental_rerun()  # safe now after clearing session states
 
         st.stop()  # Stop here so Outlet Form does not show
 
@@ -211,7 +210,7 @@ else:
                 "Outlet": outlet_name
             })
             st.success("✅ Added to list successfully!")
-            clear_form()
+            clear_outlet_form()
         else:
             st.warning("⚠️ Fill barcode and item before adding.")
 
