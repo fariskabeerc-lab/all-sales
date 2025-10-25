@@ -116,12 +116,21 @@ else:
         st.markdown("**Rating:**")
         emojis = ["😡", "😕", "😐", "🙂", "😃"]
         labels = ["Very Bad", "Bad", "Neutral", "Good", "Excellent"]
+
         cols = st.columns(len(emojis))
         for i, col in enumerate(cols):
             with col:
-                if st.button(emojis[i], key=f"emoji_{i}"):
+                selected = st.session_state.feedback_rating == i + 1
+                size = 50 if selected else 40  # increase size if selected
+                color = "orange" if selected else "black"
+                st.markdown(f"""
+                    <div style='text-align:center; cursor:pointer;'>
+                        <span style='font-size:{size}px; color:{color}'>{emojis[i]}</span><br>
+                        <span>{labels[i]}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                if st.button(f"Select {i}", key=f"emoji_{i}"):
                     st.session_state.feedback_rating = i + 1
-                st.markdown(f"<div style='text-align:center'>{labels[i]}</div>", unsafe_allow_html=True)
 
         # Display selected rating
         st.markdown(f"**Selected Rating:** {labels[st.session_state.feedback_rating-1]}")
