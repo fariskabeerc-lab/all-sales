@@ -103,43 +103,46 @@ else:
     st.session_state.page = page_option
 
     # =======================
-    # CUSTOMER FEEDBACK PAGE
-    # =======================
-    if st.session_state.page == "Customer Feedback":
-        st.markdown("### 📝 Customer Feedback")
+# CUSTOMER FEEDBACK PAGE
+# =======================
+if st.session_state.page == "Customer Feedback":
+    st.markdown("### 📝 Customer Feedback")
 
-        # Input fields
-        name = st.text_input("Customer Name", value=st.session_state.feedback_name)
-        feedback = st.text_area("Feedback / Comments", value=st.session_state.feedback_text)
+    # Input fields
+    name = st.text_input("Customer Name", value=st.session_state.feedback_name)
+    feedback = st.text_area("Feedback / Comments", value=st.session_state.feedback_text)
 
-        # Slider rating (1–5)
-        st.markdown("**Rating:**")
-        labels = ["Very Bad", "Bad", "Neutral", "Good", "Excellent"]
-        rating = st.slider(
-            "Select Rating",
-            min_value=1,
-            max_value=5,
-            value=st.session_state.feedback_rating
-        )
-        st.session_state.feedback_rating = rating
-        st.markdown(f"**Selected Rating:** {labels[rating-1]}")
+    # Slider rating (1–5)
+    st.markdown("**Rating:**")
+    labels = ["Very Bad", "Bad", "Neutral", "Good", "Excellent"]
+    rating = st.slider(
+        "Select Rating",
+        min_value=1,
+        max_value=5,
+        value=st.session_state.feedback_rating
+    )
+    st.session_state.feedback_rating = rating
+    st.markdown(f"**Selected Rating:** {labels[rating-1]}")
 
-        if st.button("📤 Submit Feedback"):
-            # Save feedback
-            st.session_state.customer_feedback.append({
-                "Customer Name": name,
-                "Feedback": feedback,
-                "Rating": labels[rating-1],
-                "Outlet": outlet_name,
-                "Date": datetime.now().strftime("%d-%b-%Y %H:%M")
-            })
-            st.success("✅ Feedback submitted successfully!")
+    if st.button("📤 Submit Feedback"):
+        # Append feedback to session_state
+        st.session_state.customer_feedback.append({
+            "Customer Name": name,
+            "Feedback": feedback,
+            "Rating": labels[rating-1],
+            "Outlet": st.session_state.selected_outlet,
+            "Date": datetime.now().strftime("%d-%b-%Y %H:%M")
+        })
+        st.success("✅ Feedback submitted successfully!")
 
-            # Clear feedback form
-            clear_feedback_form()
-            st.experimental_rerun()  # safe now after clearing session states
+        # Clear feedback form
+        st.session_state.feedback_name = ""
+        st.session_state.feedback_text = ""
+        st.session_state.feedback_rating = 3
 
-        st.stop()  # Stop here so Outlet Form does not show
+        # No need to call st.experimental_rerun()
+        st.info("Feedback form cleared. You can enter a new feedback now.")
+        st.stop()  # stop further code to prevent showing Outlet form
 
     # =======================
     # OUTLET FORM PAGE
