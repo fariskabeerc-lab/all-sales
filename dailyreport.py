@@ -5,7 +5,6 @@ from datetime import datetime
 # ==========================================
 # PAGE CONFIG
 # ==========================================
-# Corrected the typo: st.set_page_config
 st.set_page_config(page_title="Outlet & Feedback Dashboard", layout="wide")
 
 # ==========================================
@@ -15,8 +14,6 @@ st.set_page_config(page_title="Outlet & Feedback Dashboard", layout="wide")
 def load_item_data():
     file_path = "alllist.xlsx"
     try:
-        # Using a context manager to ensure file is closed, though read_excel handles it.
-        # Adding a warning here as the file is likely not present for a user running the code.
         df = pd.read_excel(file_path)
         df.columns = df.columns.str.strip()
         return df
@@ -85,7 +82,6 @@ def lookup_item_and_update_state():
             # Update generic session state keys which the main form uses for 'value'
             st.session_state.item_name_input = str(match.iloc[0]["Item Name"])
             st.session_state.supplier_input = str(match.iloc[0]["LP Supplier"])
-            # Keep other values as they were, e.g., cost, selling, qty, expiry
             st.toast("✅ Item details loaded.", icon="🔍")
         else:
             # Clear auto-filled fields if barcode is new/unknown
@@ -106,7 +102,6 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
     
     # Validation and conversion
     if not barcode.strip() or not item_name.strip():
-        # Using a dedicated error is better than st.error here as the form is already submitted
         st.toast("⚠️ Fill barcode and item name before adding.", icon="❌")
         return False
 
@@ -139,6 +134,8 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
 
     # --- CRITICAL FIX: CLEAR ALL COLUMNS SAFELY ---
     # Clear the generic session state keys that the main form uses for its 'value'
+    # This is exactly how the customer feedback form achieves clearing (by resetting inputs
+    # through the session state keys they are initialized with, followed by a rerun).
     st.session_state.barcode_value = ""          # Clears the Barcode input in the lookup form
     st.session_state.item_name_input = ""        # Clears the Item Name input
     st.session_state.supplier_input = ""         # Clears the Supplier Name input
@@ -195,12 +192,11 @@ else:
             col_bar, col_btn = st.columns([5, 1])
             
             with col_bar:
-                # Barcode input - The key is 'lookup_barcode_input' and it determines the value used in callback
+                # Barcode input
                 st.text_input(
                     "Barcode",
                     key="lookup_barcode_input", 
                     placeholder="Enter or scan barcode and press Enter to look up details",
-                    # Ensure the value is displayed from the session state after a lookup/submit
                     value=st.session_state.barcode_value
                 )
             
@@ -224,27 +220,27 @@ else:
             # Form field variables (local to the form context)
             col1, col2 = st.columns(2)
             with col1:
-                # CRITICAL: Set initial value from generic state variable
+                # Value initialized from generic state variable
                 qty = st.number_input("Qty [PCS]", min_value=1, value=st.session_state.qty_input, key="form_qty_input")
             with col2:
                 if form_type != "Damages":
-                    # CRITICAL: Set initial value from generic state variable
+                    # Value initialized from generic state variable
                     expiry = st.date_input("Expiry Date", st.session_state.expiry_input, key="form_expiry_input")
                 else:
                     expiry = None
 
             col4, col5, col6, col7 = st.columns(4)
             with col4:
-                # CRITICAL: Use session state to display the looked-up value
+                # Value initialized from generic state variable (updated by lookup)
                 item_name = st.text_input("Item Name", value=st.session_state.item_name_input, key="form_item_name_input")
             with col5:
-                # CRITICAL: Use session state to display the looked-up value
+                # Value initialized from generic state variable
                 cost_str = st.text_input("Cost", value=st.session_state.cost_input, key="form_cost_input")
             with col6:
-                # CRITICAL: Use session state to display the looked-up value
+                # Value initialized from generic state variable
                 selling_str = st.text_input("Selling Price", value=st.session_state.selling_input, key="form_selling_input")
             with col7:
-                # CRITICAL: Use session state to display the looked-up value
+                # Value initialized from generic state variable (updated by lookup)
                 supplier = st.text_input("Supplier Name", value=st.session_state.supplier_input, key="form_supplier_input")
 
             # Calculate and display GP% (based on current form values, not session state)
@@ -258,7 +254,7 @@ else:
             gp = ((temp_selling - temp_cost) / temp_cost * 100) if temp_cost else 0
             st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
 
-            # CRITICAL: Use session state to display the looked-up value
+            # Value initialized from generic state variable
             remarks = st.text_area("Remarks [if any]", value=st.session_state.remarks_input, key="form_remarks_input")
 
             # Form submission button (NO on_click)
@@ -272,7 +268,6 @@ else:
         # --- Handle Main Form Submission ONLY on Button Click ---
         # --------------------------------------------------------
         if submitted_item:
-            # The logic runs only when the button is explicitly clicked.
             # We pass the values from the internal form state keys.
             success = process_item_entry(
                 # Get current values from form state keys
@@ -323,7 +318,7 @@ else:
                             st.rerun()
 
     # ==========================================
-    # CUSTOMER FEEDBACK PAGE
+    # CUSTOMER FEEDBACK PAGE (UNCHANGED)
     # ==========================================
     else:
         outlet_name = st.session_state.selected_outlet
@@ -348,6 +343,7 @@ else:
                     "Feedback": feedback,
                     "Submitted At": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 })
+                # The clear_on_submit=True in the form handles the clearing of inputs here
                 st.success("✅ Feedback submitted successfully! The form has been cleared.")
             else:
                 st.error("⚠️ Please fill Customer Name and Feedback before submitting.")
