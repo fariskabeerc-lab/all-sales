@@ -102,30 +102,38 @@ else:
     page_option = st.sidebar.radio("📌 Navigate", ["Outlet Form", "Customer Feedback"])
     st.session_state.page = page_option
 
-    # =======================
-    # CUSTOMER FEEDBACK PAGE
-    # =======================
-    if st.session_state.page == "Customer Feedback":
-        st.markdown("### 📝 Customer Feedback")
+   # =======================
+# CUSTOMER FEEDBACK PAGE
+# =======================
+if st.session_state.page == "Customer Feedback":
+    st.markdown("### 📝 Customer Feedback")
 
-        # Input fields
-        name = st.text_input("Customer Name", value=st.session_state.feedback_name)
-        feedback = st.text_area("Feedback / Comments", value=st.session_state.feedback_text)
-        rating = st.slider("Rating", 1, 5, value=st.session_state.feedback_rating)
+    # Input fields
+    name = st.text_input("Customer Name", value=st.session_state.feedback_name)
+    feedback = st.text_area("Feedback / Comments", value=st.session_state.feedback_text)
 
-        if st.button("📤 Submit Feedback"):
-            # Save feedback (hidden, not displayed)
-            st.session_state.customer_feedback.append({
-                "Customer Name": name,
-                "Feedback": feedback,
-                "Rating": rating,
-                "Outlet": outlet_name,
-                "Date": datetime.now().strftime("%d-%b-%Y %H:%M")
-            })
-            st.success("✅ Feedback submitted successfully!")
-            clear_feedback_form()
+    # Emoji-based rating
+    emojis = ["😡", "😕", "😐", "🙂", "😃"]
+    st.markdown("**Rating:**")
+    rating = st.radio("", emojis, index=st.session_state.feedback_rating - 1, horizontal=True)
+    rating_value = emojis.index(rating) + 1  # convert emoji selection to numeric value
 
-        st.stop()  # Stop here so Outlet Form does not show
+    if st.button("📤 Submit Feedback"):
+        # Save feedback (hidden, not displayed)
+        st.session_state.customer_feedback.append({
+            "Customer Name": name,
+            "Feedback": feedback,
+            "Rating": rating_value,
+            "Outlet": st.session_state.selected_outlet,
+            "Date": datetime.now().strftime("%d-%b-%Y %H:%M")
+        })
+        st.success("✅ Feedback submitted successfully!")
+
+        # CLEAR FEEDBACK FORM
+        st.session_state.feedback_name = ""
+        st.session_state.feedback_text = ""
+        st.session_state.feedback_rating = 3
+
 
     # =======================
     # OUTLET FORM PAGE
