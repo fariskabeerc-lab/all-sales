@@ -15,6 +15,8 @@ st.set_page_config(page_title="Outlet & Feedback Dashboard", layout="wide")
 def load_item_data():
     file_path = "alllist.xlsx"
     try:
+        # Using a context manager to ensure file is closed, though read_excel handles it.
+        # Adding a warning here as the file is likely not present for a user running the code.
         df = pd.read_excel(file_path)
         df.columns = df.columns.str.strip()
         return df
@@ -40,11 +42,11 @@ password = "123123"
 
 # Initialize session state variables
 for key in ["logged_in", "selected_outlet", "submitted_items",
-            "barcode_value", 
-            "qty_input", "expiry_input", "remarks_input",
-            "item_name_input", "supplier_input", 
-            "cost_input", "selling_input",
-            "submitted_feedback"]:
+             "barcode_value",  # Used to store the currently scanned/typed barcode
+             "qty_input", "expiry_input", "remarks_input",
+             "item_name_input", "supplier_input",  # Used for auto-fill/manual typing
+             "cost_input", "selling_input",
+             "submitted_feedback"]:
     if key not in st.session_state:
         if key in ["submitted_items", "submitted_feedback"]:
             st.session_state[key] = []
@@ -61,28 +63,36 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
 # --- Lookup Logic Function (Callback for Barcode Form) ---
 # ------------------------------------------------------------------
 def lookup_item_and_update_state():
-    # Retrieve the value from the submitted form's key
+    # Retrieve the value from the submitted form's key (barcode_lookup_form's text_input)
     barcode = st.session_state.lookup_barcode_input
     
     if not barcode:
         st.session_state.item_name_input = ""
         st.session_state.supplier_input = ""
         st.session_state.barcode_value = ""
+        st.toast("⚠️ Barcode cleared.", icon="❌")
+        st.rerun()
         return
 
+    # Update the general state variable that the main form widgets use for their 'value'
     st.session_state.barcode_value = barcode 
     
     if not item_data.empty:
+        # Ensure comparison is on stripped strings
         match = item_data[item_data["Item Bar Code"].astype(str).str.strip() == str(barcode).strip()]
         
         if not match.empty:
-            # Update session state with found data
+            # Update generic session state keys which the main form uses for 'value'
             st.session_state.item_name_input = str(match.iloc[0]["Item Name"])
             st.session_state.supplier_input = str(match.iloc[0]["LP Supplier"])
+            # Keep other values as they were, e.g., cost, selling, qty, expiry
             st.toast("✅ Item details loaded.", icon="🔍")
         else:
+            # Clear auto-filled fields if barcode is new/unknown
             st.session_state.item_name_input = ""
             st.session_state.supplier_input = ""
+            st.session_state.cost_input = "0.0"
+            st.session_state.selling_input = "0.0"
             st.toast("⚠️ Barcode not found. Manual entry required.", icon="⚠️")
     
     # CRITICAL: Force a rerun here so the main form reloads with the new state values
@@ -96,7 +106,8 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
     
     # Validation and conversion
     if not barcode.strip() or not item_name.strip():
-        st.error("⚠️ Fill barcode and item name before adding.")
+        # Using a dedicated error is better than st.error here as the form is already submitted
+        st.toast("⚠️ Fill barcode and item name before adding.", icon="❌")
         return False
 
     try:
@@ -127,6 +138,7 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
     })
 
     # --- CRITICAL FIX: CLEAR ALL COLUMNS SAFELY ---
+    # Clear the generic session state keys that the main form uses for its 'value'
     st.session_state.barcode_value = ""          # Clears the Barcode input in the lookup form
     st.session_state.item_name_input = ""        # Clears the Item Name input
     st.session_state.supplier_input = ""         # Clears the Supplier Name input
@@ -134,17 +146,8 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
     st.session_state.selling_input = "0.0"       # Clears Selling Price
     st.session_state.qty_input = 1               # Resets Quantity
     st.session_state.remarks_input = ""          # Clears Remarks
-
-    # Also clear the specific form keys to ensure a clean slate on rerun
-    # (Though the main input keys above should handle it for the next run)
-    if 'form_item_name_input' in st.session_state: del st.session_state['form_item_name_input']
-    if 'form_supplier_input' in st.session_state: del st.session_state['form_supplier_input']
-    if 'form_cost_input' in st.session_state: del st.session_state['form_cost_input']
-    if 'form_selling_input' in st.session_state: del st.session_state['form_selling_input']
-    if 'form_qty_input' in st.session_state: del st.session_state['form_qty_input']
-    if 'form_remarks_input' in st.session_state: del st.session_state['form_remarks_input']
-
-
+    st.session_state.expiry_input = datetime.now().date() # Resets Expiry Date
+    
     st.toast("✅ Added to list successfully! The form has been cleared.", icon="➕")
     return True
 # -------------------------------------------------
@@ -168,6 +171,13 @@ if not st.session_state.logged_in:
             st.error("❌ Invalid username or password")
 
 else:
+    # Logout button
+    if st.sidebar.button("Logout 🚪", type="secondary"):
+        st.session_state.logged_in = False
+        st.session_state.submitted_items = [] # Clear the list on logout
+        st.session_state.submitted_feedback = [] # Clear feedback on logout
+        st.rerun()
+
     page = st.sidebar.radio("📌 Select Page", ["Outlet Dashboard", "Customer Feedback"])
 
     # ==========================================
@@ -185,11 +195,12 @@ else:
             col_bar, col_btn = st.columns([5, 1])
             
             with col_bar:
-                # Barcode input
+                # Barcode input - The key is 'lookup_barcode_input' and it determines the value used in callback
                 st.text_input(
                     "Barcode",
                     key="lookup_barcode_input", 
                     placeholder="Enter or scan barcode and press Enter to look up details",
+                    # Ensure the value is displayed from the session state after a lookup/submit
                     value=st.session_state.barcode_value
                 )
             
@@ -213,10 +224,11 @@ else:
             # Form field variables (local to the form context)
             col1, col2 = st.columns(2)
             with col1:
-                # CRITICAL: Set initial value from state
+                # CRITICAL: Set initial value from generic state variable
                 qty = st.number_input("Qty [PCS]", min_value=1, value=st.session_state.qty_input, key="form_qty_input")
             with col2:
                 if form_type != "Damages":
+                    # CRITICAL: Set initial value from generic state variable
                     expiry = st.date_input("Expiry Date", st.session_state.expiry_input, key="form_expiry_input")
                 else:
                     expiry = None
@@ -226,14 +238,16 @@ else:
                 # CRITICAL: Use session state to display the looked-up value
                 item_name = st.text_input("Item Name", value=st.session_state.item_name_input, key="form_item_name_input")
             with col5:
+                # CRITICAL: Use session state to display the looked-up value
                 cost_str = st.text_input("Cost", value=st.session_state.cost_input, key="form_cost_input")
             with col6:
+                # CRITICAL: Use session state to display the looked-up value
                 selling_str = st.text_input("Selling Price", value=st.session_state.selling_input, key="form_selling_input")
             with col7:
                 # CRITICAL: Use session state to display the looked-up value
                 supplier = st.text_input("Supplier Name", value=st.session_state.supplier_input, key="form_supplier_input")
 
-            # Calculate and display GP%
+            # Calculate and display GP% (based on current form values, not session state)
             try:
                 temp_cost = float(cost_str)
                 temp_selling = float(selling_str)
@@ -244,6 +258,7 @@ else:
             gp = ((temp_selling - temp_cost) / temp_cost * 100) if temp_cost else 0
             st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
 
+            # CRITICAL: Use session state to display the looked-up value
             remarks = st.text_area("Remarks [if any]", value=st.session_state.remarks_input, key="form_remarks_input")
 
             # Form submission button (NO on_click)
@@ -258,9 +273,10 @@ else:
         # --------------------------------------------------------
         if submitted_item:
             # The logic runs only when the button is explicitly clicked.
+            # We pass the values from the internal form state keys.
             success = process_item_entry(
                 # Get current values from form state keys
-                st.session_state.barcode_value, 
+                st.session_state.barcode_value, # Barcode is from the lookup form's persistent state
                 st.session_state.form_item_name_input, 
                 st.session_state.form_qty_input, 
                 st.session_state.form_cost_input, 
@@ -282,7 +298,7 @@ else:
 
             col_submit, col_delete = st.columns([1, 1])
             with col_submit:
-                if st.button("📤 Submit All"):
+                if st.button("📤 Submit All", type="primary"):
                     st.success(f"✅ All {len(st.session_state.submitted_items)} items submitted for {outlet_name} (demo). Resetting.")
                     st.session_state.submitted_items = []
                     # Clear state upon final submission
@@ -296,10 +312,12 @@ else:
             with col_delete:
                 options = [f"{i+1}. {item['Item Name']} ({item['Qty']} pcs)" for i, item in enumerate(st.session_state.submitted_items)]
                 if options:
-                    to_delete = st.selectbox("Select Item to Delete", options)
-                    if st.button("❌ Delete Selected"):
-                        index = int(to_delete.split(".")[0]) - 1
-                        if 0 <= index < len(st.session_state.submitted_items):
+                    # Added a default None option to prevent immediate selection
+                    to_delete = st.selectbox("Select Item to Delete", ["Select item to remove..."] + options)
+                    if to_delete != "Select item to remove...":
+                        if st.button("❌ Delete Selected", type="secondary"):
+                            # Index is based on the options list (1-based), so we subtract 1 for the list index
+                            index = options.index(to_delete) 
                             st.session_state.submitted_items.pop(index)
                             st.success("✅ Item removed")
                             st.rerun()
@@ -339,6 +357,6 @@ else:
             df = pd.DataFrame(st.session_state.submitted_feedback)
             st.dataframe(df.iloc[::-1], use_container_width=True, hide_index=True)
 
-            if st.button("🗑 Clear All Feedback Records", type="primary"):
+            if st.button("🗑 Clear All Feedback Records", type="secondary"):
                 st.session_state.submitted_feedback = []
                 st.rerun()
