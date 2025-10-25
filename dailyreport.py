@@ -2,17 +2,6 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-# Inject custom CSS to hide the submit button cleanly
-st.markdown("""
-<style>
-/* Target the specific submit button in the lookup form to hide it */
-[data-testid="stForm"] div:has(button[kind="secondaryFormSubmit"]) {
-    display: none;
-}
-</style>
-""", unsafe_allow_html=True)
-
-
 # ==========================================
 # PAGE CONFIG
 # ==========================================
@@ -163,28 +152,33 @@ else:
         form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"])
         st.markdown("---")
 
-        # --- Dedicated Lookup Form (Enter/Scan instantly updates state) ---
-        # The key to ensuring the barcode field submits this form on Enter is its position.
+        # --- Dedicated Lookup Form ---
+        # This form handles ONLY the lookup. The Enter key in the barcode input submits this form.
         with st.form("barcode_lookup_form", clear_on_submit=False):
             
-            # This hidden button must appear BEFORE the text input in the code,
-            # but we rely on the text input being the last focusable element.
-            # We use an empty container to hold the submit button, making it invisible.
-            st.form_submit_button(
-                "Hidden Lookup Trigger", 
-                on_click=lookup_item_and_update_state, 
-                help="Press Enter in the barcode field to look up item.",
-                type="secondary" # Use a secondary type to differentiate it for the CSS injection
-            )
+            col_bar, col_btn = st.columns([5, 1])
             
-            # Barcode input - make this the last element for submission priority
-            st.text_input(
-                "Barcode",
-                key="lookup_barcode_input", 
-                placeholder="Enter or scan barcode and press Enter",
-                value=st.session_state.barcode_value
-            )
+            with col_bar:
+                # Barcode input
+                st.text_input(
+                    "Barcode",
+                    key="lookup_barcode_input", 
+                    placeholder="Enter or scan barcode and press Enter",
+                    value=st.session_state.barcode_value
+                )
             
+            with col_btn:
+                # Explicitly add a button. This is the submit button for the form.
+                # Its presence ensures the Enter key on the barcode input works.
+                st.markdown("<div style='height: 33px;'></div>", unsafe_allow_html=True) # Spacer to align with input
+                st.form_submit_button(
+                    "🔍", 
+                    on_click=lookup_item_and_update_state, 
+                    help="Click or press Enter in the barcode field to look up item.",
+                    type="secondary",
+                    use_container_width=True
+                )
+
         st.markdown("---")
         # -----------------------------------------------------------
 
@@ -274,7 +268,7 @@ else:
                             st.rerun()
 
     # ==========================================
-    # CUSTOMER FEEDBACK PAGE
+    # CUSTOMER FEEDBACK PAGE (REVERTED TO PREVIOUS)
     # ==========================================
     else:
         outlet_name = st.session_state.selected_outlet
@@ -284,6 +278,8 @@ else:
 
         with st.form("feedback_form", clear_on_submit=True):
             name = st.text_input("Customer Name")
+            # --- REVERTED: Email is back as Optional ---
+            email = st.text_input("Email (Optional)")
             rating = st.slider("Rate Our Outlet", 1, 5, 5)
             feedback = st.text_area("Your Feedback (Required)")
             submitted = st.form_submit_button("📤 Submit Feedback")
@@ -292,6 +288,7 @@ else:
             if name.strip() and feedback.strip():
                 st.session_state.submitted_feedback.append({
                     "Customer Name": name,
+                    "Email": email.strip(), # Storing Email
                     "Rating": f"{rating} / 5",
                     "Outlet": outlet_name,
                     "Feedback": feedback,
@@ -300,3 +297,14 @@ else:
                 st.success("✅ Feedback submitted successfully! The form has been cleared.")
             else:
                 st.error("⚠️ Please fill Customer Name and Feedback before submitting.")
+
+        # --- REVERTED: Displaying the submitted feedback list is back ---
+        if st.session_state.submitted_feedback:
+            st.markdown("### 🗂 Recent Customer Feedback")
+            # Show all feedback, most recent first
+            df = pd.DataFrame(st.session_state.submitted_feedback)
+            st.dataframe(df.iloc[::-1], use_container_width=True, hide_index=True)
+
+            if st.button("🗑 Clear All Feedback Records", type="primary"):
+                st.session_state.submitted_feedback = []
+                st.rerun()
