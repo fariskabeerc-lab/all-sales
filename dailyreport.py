@@ -180,9 +180,9 @@ if page == "Outlet Dashboard":
                     st.success("✅ Item removed")
                     st.experimental_rerun()
 
-# ==========================================
+# ==============================
 # CUSTOMER FEEDBACK PAGE
-# ==========================================
+# ==============================
 else:
     # Initialize session state for feedback
     for key in ["customer_name", "customer_email", "rating", "feedback", "submitted_feedback"]:
@@ -199,33 +199,30 @@ else:
 
     col1, col2 = st.columns(2)
     with col1:
-        name = st.text_input("Customer Name", value=st.session_state.customer_name)
-        st.session_state.customer_name = name
+        name = st.text_input("Customer Name", value=st.session_state.customer_name, key="name_input")
     with col2:
-        email = st.text_input("Email (Optional)", value=st.session_state.customer_email)
-        st.session_state.customer_email = email
+        email = st.text_input("Email (Optional)", value=st.session_state.customer_email, key="email_input")
 
-    rating = st.slider("Rate Our Outlet", min_value=1, max_value=5, value=st.session_state.rating)
-    st.session_state.rating = rating
-
-    feedback = st.text_area("Your Feedback", value=st.session_state.feedback)
-    st.session_state.feedback = feedback
+    rating = st.slider("Rate Our Outlet", min_value=1, max_value=5, value=st.session_state.rating, key="rating_slider")
+    feedback = st.text_area("Your Feedback", value=st.session_state.feedback, key="feedback_text")
 
     if st.button("📤 Submit Feedback"):
         if name and feedback:
+            # Append feedback safely
             st.session_state.submitted_feedback.append({
-                "Customer Name": name,
-                "Email": email,
-                "Rating": rating,
-                "Feedback": feedback,
+                "Customer Name": str(name),
+                "Email": str(email),
+                "Rating": int(rating),
+                "Feedback": str(feedback),
                 "Submitted At": datetime.now().strftime("%d-%b-%Y %H:%M:%S")
             })
             st.success("✅ Feedback submitted successfully!")
-            st.session_state.customer_name = ""
-            st.session_state.customer_email = ""
-            st.session_state.rating = 5
-            st.session_state.feedback = ""
-            st.experimental_rerun()
+
+            # Reset the form inputs directly
+            st.session_state.name_input = ""
+            st.session_state.email_input = ""
+            st.session_state.rating_slider = 5
+            st.session_state.feedback_text = ""
         else:
             st.warning("⚠️ Please fill at least your name and feedback.")
 
