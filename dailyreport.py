@@ -5,7 +5,7 @@ from datetime import datetime
 # ==========================================
 # PAGE CONFIG
 # ==========================================
-st.set_page_config(page_title="Outlet & Feedback Dashboard", layout="wide")
+st.set_set_page_config(page_title="Outlet & Feedback Dashboard", layout="wide")
 
 # ==========================================
 # LOAD ITEM DATA (for auto-fill)
@@ -38,6 +38,7 @@ outlets = [
 password = "123123"
 
 # Initialize session state variables
+# CRITICAL: We ensure all necessary state variables exist
 for key in ["logged_in", "selected_outlet", "submitted_items",
             "barcode_value", 
             "qty_input", "expiry_input", "remarks_input",
@@ -57,14 +58,12 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
             st.session_state[key] = ""
 
 # ------------------------------------------------------------------
-# --- Lookup Logic Function (Callable via Lookup Form submission) ---
+# --- Lookup Logic Function (Callback for Barcode Form) ---
 # ------------------------------------------------------------------
 def lookup_item_and_update_state():
     # Retrieve the value from the submitted form's key
-    # CRITICAL: We use the key of the barcode input from the lookup form
     barcode = st.session_state.lookup_barcode_input
     
-    # If barcode is empty, clear other fields and stop.
     if not barcode:
         st.session_state.item_name_input = ""
         st.session_state.supplier_input = ""
@@ -74,7 +73,6 @@ def lookup_item_and_update_state():
     st.session_state.barcode_value = barcode 
     
     if not item_data.empty:
-        # Match barcode, ensuring string comparison
         match = item_data[item_data["Item Bar Code"].astype(str).str.strip() == str(barcode).strip()]
         
         if not match.empty:
@@ -83,21 +81,23 @@ def lookup_item_and_update_state():
             st.session_state.supplier_input = str(match.iloc[0]["LP Supplier"])
             st.toast("✅ Item details loaded.", icon="🔍")
         else:
-            # Clear/set fields if not found
             st.session_state.item_name_input = ""
             st.session_state.supplier_input = ""
             st.toast("⚠️ Barcode not found. Manual entry required.", icon="⚠️")
+    
+    # CRITICAL: Force a rerun here so the main form reloads with the new state values
+    st.rerun() 
 # ------------------------------------------------------------------
 
 # -------------------------------------------------
-# --- Main Form Submission Handler (Non-Callback) ---
+# --- Main Form Submission Handler ---
 # -------------------------------------------------
 def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, supplier, remarks, form_type, outlet_name):
     
     # Validation and conversion
     if not barcode.strip() or not item_name.strip():
         st.error("⚠️ Fill barcode and item name before adding.")
-        return False # Indicate failure
+        return False
 
     try:
         cost = float(cost_str)
@@ -132,9 +132,10 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
     st.session_state.supplier_input = ""
     st.session_state.cost_input = "0.0"
     st.session_state.selling_input = "0.0"
+    st.session_state.qty_input = 1 # Reset Quantity input
 
     st.toast("✅ Added to list successfully! The form has been cleared.", icon="➕")
-    return True # Indicate success
+    return True
 # -------------------------------------------------
 
 
@@ -167,7 +168,7 @@ else:
         form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"])
         st.markdown("---")
 
-        # --- Dedicated Lookup Form (for instant barcode lookup) ---
+        # --- Dedicated Lookup Form (for instant barcode lookup on Enter) ---
         with st.form("barcode_lookup_form", clear_on_submit=False):
             
             col_bar, col_btn = st.columns([5, 1])
@@ -177,16 +178,16 @@ else:
                 st.text_input(
                     "Barcode",
                     key="lookup_barcode_input", 
-                    placeholder="Enter or scan barcode and press Enter",
+                    placeholder="Enter or scan barcode and press Enter to look up details",
                     value=st.session_state.barcode_value
                 )
             
             with col_btn:
-                # Explicitly add a button. It MUST be the only submit button in this form.
-                st.markdown("<div style='height: 33px;'></div>", unsafe_allow_html=True) # Spacer to align with input
-                submitted_lookup = st.form_submit_button(
+                # This button captures the Enter key press from the barcode input
+                st.markdown("<div style='height: 33px;'></div>", unsafe_allow_html=True) # Spacer
+                st.form_submit_button(
                     "🔍", 
-                    on_click=lookup_item_and_update_state, 
+                    on_click=lookup_item_and_update_state, # Callback runs and forces rerun
                     help="Click or press Enter in the barcode field to look up item.",
                     type="secondary",
                     use_container_width=True
@@ -195,13 +196,13 @@ else:
         st.markdown("---")
         # -----------------------------------------------------------
 
-        # --- Start of the Item Entry Form (Clears on submit) ---
-        # The form fields collect data, but submission only happens on button press.
-        with st.form("item_entry_form", clear_on_submit=False): # NOTE: We set clear_on_submit=False for easier manual clearing later
+        # --- Start of the Item Entry Form (Only submits on button click) ---
+        with st.form("item_entry_form", clear_on_submit=False): # clear_on_submit=False is safer for manual clearing
 
             # Form field variables (local to the form context)
             col1, col2 = st.columns(2)
             with col1:
+                # CRITICAL: Set initial value from state
                 qty = st.number_input("Qty [PCS]", min_value=1, value=st.session_state.qty_input, key="form_qty_input")
             with col2:
                 if form_type != "Damages":
@@ -211,14 +212,14 @@ else:
 
             col4, col5, col6, col7 = st.columns(4)
             with col4:
-                # Defaults from session state, updated by the barcode input's lookup
+                # CRITICAL: Use session state to display the looked-up value
                 item_name = st.text_input("Item Name", value=st.session_state.item_name_input, key="form_item_name_input")
             with col5:
                 cost_str = st.text_input("Cost", value=st.session_state.cost_input, key="form_cost_input")
             with col6:
                 selling_str = st.text_input("Selling Price", value=st.session_state.selling_input, key="form_selling_input")
             with col7:
-                # Defaults from session state, updated by the barcode input's lookup
+                # CRITICAL: Use session state to display the looked-up value
                 supplier = st.text_input("Supplier Name", value=st.session_state.supplier_input, key="form_supplier_input")
 
             # Calculate and display GP%
@@ -232,9 +233,9 @@ else:
             gp = ((temp_selling - temp_cost) / temp_cost * 100) if temp_cost else 0
             st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
 
-            remarks = st.text_area("Remarks [if any]", key="form_remarks_input")
+            remarks = st.text_area("Remarks [if any]", value=st.session_state.remarks_input, key="form_remarks_input")
 
-            # Form submission button
+            # Form submission button (NO on_click)
             submitted_item = st.form_submit_button(
                 "➕ Add to List", 
                 type="primary",
@@ -242,13 +243,22 @@ else:
             # --- End of the Item Entry Form ---
 
         # --------------------------------------------------------
-        # --- Handle Main Form Submission ONLY on Button Press ---
+        # --- Handle Main Form Submission ONLY on Button Click ---
         # --------------------------------------------------------
         if submitted_item:
             # The logic runs only when the button is explicitly clicked.
             success = process_item_entry(
-                st.session_state.barcode_value, item_name, qty, cost_str, 
-                selling_str, expiry, supplier, remarks, form_type, outlet_name
+                # Get current values from form state keys
+                st.session_state.barcode_value, 
+                st.session_state.form_item_name_input, 
+                st.session_state.form_qty_input, 
+                st.session_state.form_cost_input, 
+                st.session_state.form_selling_input, 
+                st.session_state.form_expiry_input if form_type != "Damages" else None, 
+                st.session_state.form_supplier_input, 
+                st.session_state.form_remarks_input,
+                form_type, 
+                outlet_name
             )
             if success:
                  st.rerun() # Rerun to reflect list update and clear inputs via session state
@@ -284,7 +294,7 @@ else:
                             st.rerun()
 
     # ==========================================
-    # CUSTOMER FEEDBACK PAGE (REVERTED)
+    # CUSTOMER FEEDBACK PAGE
     # ==========================================
     else:
         outlet_name = st.session_state.selected_outlet
