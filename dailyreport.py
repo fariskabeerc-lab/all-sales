@@ -184,7 +184,7 @@ if page == "Outlet Dashboard":
 # CUSTOMER FEEDBACK PAGE
 # ==============================
 else:
-    # Initialize session state for feedback
+    # Initialize session state for feedback (all keys upfront)
     for key in ["customer_name", "customer_email", "rating", "feedback", "submitted_feedback"]:
         if key not in st.session_state:
             if key == "submitted_feedback":
@@ -197,17 +197,18 @@ else:
     st.title("📝 Customer Feedback Form")
     st.markdown("Please give your feedback and rate our outlet.")
 
+    # Use the same keys that exist in session_state
     col1, col2 = st.columns(2)
     with col1:
-        name = st.text_input("Customer Name", value=st.session_state.customer_name, key="name_input")
+        name = st.text_input("Customer Name", value=st.session_state.customer_name, key="customer_name")
     with col2:
-        email = st.text_input("Email (Optional)", value=st.session_state.customer_email, key="email_input")
+        email = st.text_input("Email (Optional)", value=st.session_state.customer_email, key="customer_email")
 
-    rating = st.slider("Rate Our Outlet", min_value=1, max_value=5, value=st.session_state.rating, key="rating_slider")
-    feedback = st.text_area("Your Feedback", value=st.session_state.feedback, key="feedback_text")
+    rating = st.slider("Rate Our Outlet", min_value=1, max_value=5, value=st.session_state.rating, key="rating")
+    feedback = st.text_area("Your Feedback", value=st.session_state.feedback, key="feedback")
 
     if st.button("📤 Submit Feedback"):
-        if name and feedback:
+        if name.strip() and feedback.strip():
             # Append feedback safely
             st.session_state.submitted_feedback.append({
                 "Customer Name": str(name),
@@ -218,11 +219,11 @@ else:
             })
             st.success("✅ Feedback submitted successfully!")
 
-            # Reset the form inputs directly
-            st.session_state.name_input = ""
-            st.session_state.email_input = ""
-            st.session_state.rating_slider = 5
-            st.session_state.feedback_text = ""
+            # Reset values in session_state directly
+            st.session_state.customer_name = ""
+            st.session_state.customer_email = ""
+            st.session_state.rating = 5
+            st.session_state.feedback = ""
         else:
             st.warning("⚠️ Please fill at least your name and feedback.")
 
