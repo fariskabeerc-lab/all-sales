@@ -35,12 +35,17 @@ password_manager = "1234512345"
 # ==========================================
 # SESSION VARIABLES
 # ==========================================
-for key in ["logged_in", "role", "selected_outlet", "submitted_items", "manager_form"]:
+for key in ["logged_in", "role", "selected_outlet", "submitted_items", "manager_form",
+            "barcode_input", "qty_input", "expiry_input", "remarks_input"]:
     if key not in st.session_state:
         if key in ["submitted_items", "manager_form"]:
             st.session_state[key] = []
+        elif key == "qty_input":
+            st.session_state[key] = 1
+        elif key == "expiry_input":
+            st.session_state[key] = datetime.now()
         else:
-            st.session_state[key] = None
+            st.session_state[key] = ""
 
 # ==========================================
 # LOGIN PAGE
@@ -85,22 +90,21 @@ elif st.session_state.role == "Outlet":
     form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"])
     st.markdown("---")
 
-    # Add a session key for input reset
-    if "input_reset" not in st.session_state:
-        st.session_state.input_reset = 0
-
     # INPUTS
     col1, col2, col3 = st.columns(3)
     with col1:
-        barcode = st.text_input("Barcode", key=f"barcode_{st.session_state.input_reset}")
+        barcode = st.text_input("Barcode", value=st.session_state.barcode_input)
+        st.session_state.barcode_input = barcode
     with col2:
-        qty = st.number_input("Qty [PCS]", min_value=1, value=1, key=f"qty_{st.session_state.input_reset}")
+        qty = st.number_input("Qty [PCS]", min_value=1, value=st.session_state.qty_input)
+        st.session_state.qty_input = qty
     with col3:
         expiry = None
         if form_type != "Damages":
-            expiry = st.date_input("Expiry Date", datetime.now(), key=f"expiry_{st.session_state.input_reset}")
+            expiry = st.date_input("Expiry Date", st.session_state.expiry_input)
+            st.session_state.expiry_input = expiry
 
-    # AUTO FILL
+    # AUTO-FILL
     item_name, cost, selling, supplier = "", 0.0, 0.0, ""
     if barcode:
         match = item_data[item_data["Item Bar Code"].astype(str) == str(barcode)]
@@ -112,18 +116,19 @@ elif st.session_state.role == "Outlet":
 
     col4, col5, col6, col7 = st.columns(4)
     with col4:
-        item_name = st.text_input("Item Name", value=item_name, key=f"item_{st.session_state.input_reset}")
+        item_name = st.text_input("Item Name", value=item_name)
     with col5:
-        st.number_input("Cost", value=cost, disabled=True, key=f"cost_{st.session_state.input_reset}")
+        st.number_input("Cost", value=cost, disabled=True)
     with col6:
-        st.number_input("Selling Price", value=selling, disabled=True, key=f"sell_{st.session_state.input_reset}")
+        st.number_input("Selling Price", value=selling, disabled=True)
     with col7:
-        supplier = st.text_input("Supplier Name", value=supplier, key=f"supplier_{st.session_state.input_reset}")
+        supplier = st.text_input("Supplier Name", value=supplier)
 
     gp = ((selling - cost) / cost * 100) if cost else 0
     st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
 
-    remarks = st.text_area("Remarks [if any]", key=f"remarks_{st.session_state.input_reset}")
+    remarks = st.text_area("Remarks [if any]", value=st.session_state.remarks_input)
+    st.session_state.remarks_input = remarks
 
     # ADD TO LIST
     if st.button("➕ Add to List"):
@@ -143,7 +148,12 @@ elif st.session_state.role == "Outlet":
                 "Outlet": outlet_name
             })
             st.success("✅ Added to list successfully!")
-            st.session_state.input_reset += 1  # This clears the form by regenerating keys
+
+            # CLEAR FORM FOR NEXT ENTRY
+            st.session_state.barcode_input = ""
+            st.session_state.qty_input = 1
+            st.session_state.expiry_input = datetime.now()
+            st.session_state.remarks_input = ""
             st.experimental_rerun()
         else:
             st.warning("⚠️ Fill barcode and item before adding.")
@@ -159,6 +169,7 @@ elif st.session_state.role == "Outlet":
             if st.button("📤 Submit All"):
                 st.success("✅ All data submitted (demo)")
                 st.session_state.submitted_items = []
+
         with col_delete:
             to_delete = st.selectbox(
                 "Select Item to Delete",
@@ -186,8 +197,7 @@ elif st.session_state.role == "Manager":
     managers_present = st.text_input("Managers Present")
 
     st.markdown("---")
-    st.markdown("### ✅ Checklist")
-
+    st.markdown("### ✅ Checklist Items")
     checklist_items = [
         "Store Entrance area clean and tidy",
         "Shopping baskets/trolleys available & in good condition",
