@@ -260,7 +260,3 @@ elif st.session_state.role == "Manager":
         }
         st.session_state.manager_form.append(record)
         st.success("✅ Checklist submitted successfully (demo)")
-
-    if st.button("🚪 Logout"):
-        st.session_state.logged_in = False
-        st.experimental_rerun()
