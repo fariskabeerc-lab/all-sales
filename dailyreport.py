@@ -61,8 +61,10 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
 # ------------------------------------------------------------------
 def lookup_item_and_update_state():
     # Retrieve the value from the submitted form's key
+    # CRITICAL: We use the key of the barcode input from the lookup form
     barcode = st.session_state.lookup_barcode_input
     
+    # If barcode is empty, clear other fields and stop.
     if not barcode:
         st.session_state.item_name_input = ""
         st.session_state.supplier_input = ""
@@ -87,12 +89,24 @@ def lookup_item_and_update_state():
             st.toast("⚠️ Barcode not found. Manual entry required.", icon="⚠️")
 # ------------------------------------------------------------------
 
-# --- Form Submission Handler (Callback) ---
-def add_item_to_list(barcode, item_name, qty, cost, selling, expiry, supplier, remarks, form_type, outlet_name):
+# -------------------------------------------------
+# --- Main Form Submission Handler (Non-Callback) ---
+# -------------------------------------------------
+def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, supplier, remarks, form_type, outlet_name):
     
+    # Validation and conversion
     if not barcode.strip() or not item_name.strip():
         st.error("⚠️ Fill barcode and item name before adding.")
-        return 
+        return False # Indicate failure
+
+    try:
+        cost = float(cost_str)
+    except ValueError:
+        cost = 0.0
+    try:
+        selling = float(selling_str)
+    except ValueError:
+        selling = 0.0
 
     expiry_display = expiry.strftime("%d-%b-%y") if expiry else ""
     gp = ((selling - cost) / cost * 100) if cost else 0
@@ -120,6 +134,7 @@ def add_item_to_list(barcode, item_name, qty, cost, selling, expiry, supplier, r
     st.session_state.selling_input = "0.0"
 
     st.toast("✅ Added to list successfully! The form has been cleared.", icon="➕")
+    return True # Indicate success
 # -------------------------------------------------
 
 
@@ -152,8 +167,7 @@ else:
         form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"])
         st.markdown("---")
 
-        # --- Dedicated Lookup Form ---
-        # This form handles ONLY the lookup. The Enter key in the barcode input submits this form.
+        # --- Dedicated Lookup Form (for instant barcode lookup) ---
         with st.form("barcode_lookup_form", clear_on_submit=False):
             
             col_bar, col_btn = st.columns([5, 1])
@@ -168,10 +182,9 @@ else:
                 )
             
             with col_btn:
-                # Explicitly add a button. This is the submit button for the form.
-                # Its presence ensures the Enter key on the barcode input works.
+                # Explicitly add a button. It MUST be the only submit button in this form.
                 st.markdown("<div style='height: 33px;'></div>", unsafe_allow_html=True) # Spacer to align with input
-                st.form_submit_button(
+                submitted_lookup = st.form_submit_button(
                     "🔍", 
                     on_click=lookup_item_and_update_state, 
                     help="Click or press Enter in the barcode field to look up item.",
@@ -183,8 +196,9 @@ else:
         # -----------------------------------------------------------
 
         # --- Start of the Item Entry Form (Clears on submit) ---
-        with st.form("item_entry_form", clear_on_submit=True):
-            
+        # The form fields collect data, but submission only happens on button press.
+        with st.form("item_entry_form", clear_on_submit=False): # NOTE: We set clear_on_submit=False for easier manual clearing later
+
             # Form field variables (local to the form context)
             col1, col2 = st.columns(2)
             with col1:
@@ -207,39 +221,41 @@ else:
                 # Defaults from session state, updated by the barcode input's lookup
                 supplier = st.text_input("Supplier Name", value=st.session_state.supplier_input, key="form_supplier_input")
 
-            # Try to convert cost and selling to float
+            # Calculate and display GP%
             try:
-                cost = float(cost_str)
+                temp_cost = float(cost_str)
+                temp_selling = float(selling_str)
             except ValueError:
-                cost = 0.0
-            try:
-                selling = float(selling_str)
-            except ValueError:
-                selling = 0.0
-
-            gp = ((selling - cost) / cost * 100) if cost else 0
+                temp_cost = 0.0
+                temp_selling = 0.0
+                
+            gp = ((temp_selling - temp_cost) / temp_cost * 100) if temp_cost else 0
             st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
 
             remarks = st.text_area("Remarks [if any]", key="form_remarks_input")
 
-            # Form submission button using the callback
-            st.form_submit_button(
+            # Form submission button
+            submitted_item = st.form_submit_button(
                 "➕ Add to List", 
                 type="primary",
-                on_click=add_item_to_list,
-                # Pass barcode value from session state
-                args=(
-                    st.session_state.barcode_value, item_name, qty, cost, 
-                    selling, expiry, supplier, remarks, form_type, outlet_name
-                )
             )
             # --- End of the Item Entry Form ---
 
+        # --------------------------------------------------------
+        # --- Handle Main Form Submission ONLY on Button Press ---
+        # --------------------------------------------------------
+        if submitted_item:
+            # The logic runs only when the button is explicitly clicked.
+            success = process_item_entry(
+                st.session_state.barcode_value, item_name, qty, cost_str, 
+                selling_str, expiry, supplier, remarks, form_type, outlet_name
+            )
+            if success:
+                 st.rerun() # Rerun to reflect list update and clear inputs via session state
 
         # Displaying and managing the list
         if st.session_state.submitted_items:
             st.markdown("### 🧾 Items Added")
-            # Show all item types (Expiry, Damages, Near Expiry) in one list
             df = pd.DataFrame(st.session_state.submitted_items)
             st.dataframe(df, use_container_width=True, hide_index=True)
 
@@ -268,7 +284,7 @@ else:
                             st.rerun()
 
     # ==========================================
-    # CUSTOMER FEEDBACK PAGE (REVERTED TO PREVIOUS)
+    # CUSTOMER FEEDBACK PAGE (REVERTED)
     # ==========================================
     else:
         outlet_name = st.session_state.selected_outlet
@@ -278,8 +294,7 @@ else:
 
         with st.form("feedback_form", clear_on_submit=True):
             name = st.text_input("Customer Name")
-            # --- REVERTED: Email is back as Optional ---
-            email = st.text_input("Email (Optional)")
+            email = st.text_input("Email (Optional)") 
             rating = st.slider("Rate Our Outlet", 1, 5, 5)
             feedback = st.text_area("Your Feedback (Required)")
             submitted = st.form_submit_button("📤 Submit Feedback")
@@ -288,7 +303,7 @@ else:
             if name.strip() and feedback.strip():
                 st.session_state.submitted_feedback.append({
                     "Customer Name": name,
-                    "Email": email.strip(), # Storing Email
+                    "Email": email.strip(),
                     "Rating": f"{rating} / 5",
                     "Outlet": outlet_name,
                     "Feedback": feedback,
@@ -298,10 +313,8 @@ else:
             else:
                 st.error("⚠️ Please fill Customer Name and Feedback before submitting.")
 
-        # --- REVERTED: Displaying the submitted feedback list is back ---
         if st.session_state.submitted_feedback:
             st.markdown("### 🗂 Recent Customer Feedback")
-            # Show all feedback, most recent first
             df = pd.DataFrame(st.session_state.submitted_feedback)
             st.dataframe(df.iloc[::-1], use_container_width=True, hide_index=True)
 
