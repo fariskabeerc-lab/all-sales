@@ -57,35 +57,42 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
         else:
             st.session_state[key] = ""
 
+# ------------------------------------------------------------------
 # --- Auto-fill/Lookup Logic Function (Callable via barcode's on_change) ---
+# ------------------------------------------------------------------
 def lookup_item_and_update_state():
     # Get the current value from the input widget
     barcode = st.session_state.barcode_input 
     
-    # Check if the barcode field was cleared manually
+    # Reset fields if the barcode field was cleared
     if not barcode:
         st.session_state.item_name_input = ""
         st.session_state.supplier_input = ""
-        # Don't show warning/success if field is just empty
         return
 
-    if barcode and not item_data.empty:
+    item_found = False
+    
+    if not item_data.empty:
         # Ensure comparison is done on string types and stripped
         match = item_data[item_data["Item Bar Code"].astype(str).str.strip() == str(barcode).strip()]
+        
         if not match.empty:
+            # Update session state with found data
             st.session_state.item_name_input = str(match.iloc[0]["Item Name"])
             st.session_state.supplier_input = str(match.iloc[0]["LP Supplier"])
             st.toast("✅ Item details loaded.", icon="🔍")
+            item_found = True
         else:
+            # Clear/set fields if not found
             st.session_state.item_name_input = ""
             st.session_state.supplier_input = ""
             st.toast("⚠️ Barcode not found. Manual entry required.", icon="⚠️")
-    
-    # st.rerun() is needed here to refresh the form fields with new session state defaults
-    # NOTE: Since this is called from on_change, the app will rerun automatically. 
-    # Calling st.rerun() explicitly here would be redundant or cause errors.
-    pass # Let the on_change event handle the automatic rerun
-# -------------------------------------------------------------
+
+    # CRITICAL FIX: Explicitly call rerun only here. 
+    # This forces the app to update the form fields immediately after Enter is pressed on the barcode input.
+    if item_found:
+        st.rerun() 
+# ------------------------------------------------------------------
 
 # --- Form Submission Handler (Callback) ---
 def add_item_to_list(barcode, item_name, qty, cost, selling, expiry, supplier, remarks, form_type, outlet_name):
@@ -155,8 +162,7 @@ else:
         st.markdown("---")
 
         # --- Barcode Input (OUTSIDE MAIN FORM) ---
-        # The key to instant auto-fill: on_change triggers lookup and rerun.
-        # Enter key/Scanner will trigger this on_change event, not form submit.
+        # The key to instant auto-fill: on_change triggers lookup and rerun after Enter/Scan
         st.text_input("Barcode", key="barcode_input", placeholder="Enter or scan barcode", on_change=lookup_item_and_update_state)
         
         st.markdown("---")
