@@ -2,6 +2,17 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
+# Inject custom CSS to hide the submit button cleanly
+st.markdown("""
+<style>
+/* Target the specific submit button in the lookup form to hide it */
+[data-testid="stForm"] div:has(button[kind="secondaryFormSubmit"]) {
+    display: none;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
 # ==========================================
 # PAGE CONFIG
 # ==========================================
@@ -153,10 +164,20 @@ else:
         st.markdown("---")
 
         # --- Dedicated Lookup Form (Enter/Scan instantly updates state) ---
-        # The Enter key in the st.text_input below will submit this form.
+        # The key to ensuring the barcode field submits this form on Enter is its position.
         with st.form("barcode_lookup_form", clear_on_submit=False):
             
-            # Barcode input
+            # This hidden button must appear BEFORE the text input in the code,
+            # but we rely on the text input being the last focusable element.
+            # We use an empty container to hold the submit button, making it invisible.
+            st.form_submit_button(
+                "Hidden Lookup Trigger", 
+                on_click=lookup_item_and_update_state, 
+                help="Press Enter in the barcode field to look up item.",
+                type="secondary" # Use a secondary type to differentiate it for the CSS injection
+            )
+            
+            # Barcode input - make this the last element for submission priority
             st.text_input(
                 "Barcode",
                 key="lookup_barcode_input", 
@@ -164,14 +185,6 @@ else:
                 value=st.session_state.barcode_value
             )
             
-            # FIX: Removed label_visibility="collapsed" to avoid TypeError.
-            # This visible button captures the Enter key press and runs the lookup.
-            st.form_submit_button(
-                "Trigger Lookup (Press Enter)", 
-                on_click=lookup_item_and_update_state, 
-                help="Press Enter in the barcode field to look up item."
-            )
-
         st.markdown("---")
         # -----------------------------------------------------------
 
