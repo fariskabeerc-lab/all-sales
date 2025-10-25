@@ -72,7 +72,7 @@ if not st.session_state.logged_in:
         if username == "almadina" and pwd == password:
             st.session_state.logged_in = True
             st.session_state.selected_outlet = outlet
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.error("❌ Invalid username or password")
 
@@ -83,7 +83,7 @@ else:
     # Logout button in the sidebar
     if st.sidebar.button("🚪 Logout"):
         st.session_state.logged_in = False
-        st.experimental_rerun()
+        st.rerun()
 
     # ==========================================
     # OUTLET DASHBOARD
@@ -174,7 +174,7 @@ else:
                 st.session_state.qty_input = 1
                 st.session_state.expiry_input = datetime.now().date()
                 st.session_state.remarks_input = ""
-                st.experimental_rerun() # Rerun to refresh the text inputs
+                st.rerun() # FIX: Changed to st.rerun()
             else:
                 st.warning("⚠️ Fill barcode and item name before adding.")
 
@@ -192,7 +192,7 @@ else:
                     # Submit logic here (e.g., Google Sheets)
                     st.success(f"✅ All {len(st.session_state.submitted_items)} items submitted for {outlet_name} (demo)")
                     st.session_state.submitted_items = []
-                    st.experimental_rerun()
+                    st.rerun() # FIX: Changed to st.rerun()
 
             with col_delete:
                 # Create options list for deletion
@@ -210,7 +210,7 @@ else:
                     if 0 <= index < len(st.session_state.submitted_items):
                         st.session_state.submitted_items.pop(index)
                         st.success("✅ Item removed")
-                        st.experimental_rerun()
+                        st.rerun() # FIX: Changed to st.rerun()
                     else:
                         st.warning("Could not find the item to delete.")
 
@@ -259,4 +259,4 @@ else:
             # Clear all button
             if st.button("🗑 Clear All Feedback Records", type="primary"):
                 st.session_state.submitted_feedback = []
-                st.experimental_rerun()
+                st.rerun() # FIX: Changed to st.rerun()
