@@ -29,31 +29,29 @@ outlets = [
 ]
 password = "123123"
 
-# Initialize session state variables
-for key in [
-    "logged_in", "selected_outlet", "submitted_items",
-    "barcode_input", "qty_input", "expiry_input", "remarks_input",
-    "page", "customer_feedback",
-    "feedback_name", "feedback_text", "feedback_rating"
-]:
+# Initialize session state variables safely
+default_keys = {
+    "logged_in": False,
+    "selected_outlet": "",
+    "submitted_items": [],
+    "barcode_input": "",
+    "qty_input": 1,
+    "expiry_input": datetime.now(),
+    "remarks_input": "",
+    "page": "Outlet Form",
+    "customer_feedback": [],
+    "feedback_name": "",
+    "feedback_text": "",
+    "feedback_rating": 3
+}
+
+for key, value in default_keys.items():
     if key not in st.session_state:
-        if key in ["submitted_items", "customer_feedback"]:
-            st.session_state[key] = []
-        elif key == "qty_input":
-            st.session_state[key] = 1
-        elif key == "expiry_input":
-            st.session_state[key] = datetime.now()
-        elif key == "feedback_rating":
-            st.session_state[key] = 3
-        else:
-            st.session_state[key] = ""
+        st.session_state[key] = value
 
 # ==========================================
 # PAGE NAVIGATION
 # ==========================================
-if "page" not in st.session_state or st.session_state.page == "":
-    st.session_state.page = "Outlet Form"
-
 st.sidebar.title("Navigation")
 page_choice = st.sidebar.radio("Go to:", ["Outlet Form", "Customer Feedback"])
 st.session_state.page = page_choice
@@ -88,9 +86,7 @@ elif st.session_state.logged_in and st.session_state.page == "Outlet Form":
     )
     st.markdown("---")
 
-    # ==============================
     # FORM INPUTS
-    # ==============================
     col1, col2, col3 = st.columns(3)
     with col1:
         barcode = st.text_input("Barcode", value=st.session_state.barcode_input)
@@ -130,9 +126,7 @@ elif st.session_state.logged_in and st.session_state.page == "Outlet Form":
     remarks = st.text_area("Remarks [if any]", value=st.session_state.remarks_input)
     st.session_state.remarks_input = remarks
 
-    # ==============================
     # ADD TO LIST BUTTON
-    # ==============================
     if st.button("➕ Add to List"):
         if barcode and item_name:
             st.session_state.submitted_items.append({
@@ -158,9 +152,7 @@ elif st.session_state.logged_in and st.session_state.page == "Outlet Form":
         else:
             st.warning("⚠️ Fill barcode and item before adding.")
 
-    # ==============================
     # DISPLAY SUBMITTED ITEMS
-    # ==============================
     if st.session_state.submitted_items:
         st.markdown("### 🧾 Items Added")
         df = pd.DataFrame(st.session_state.submitted_items)
@@ -220,10 +212,8 @@ elif st.session_state.logged_in and st.session_state.page == "Customer Feedback"
         })
         st.success("✅ Feedback submitted successfully!")
 
-        # Clear form safely
-        st.session_state.update({
-            "feedback_name": "",
-            "feedback_text": "",
-            "feedback_rating": 3
-        })
+        # CLEAR FORM SAFELY
+        st.session_state.feedback_name = ""
+        st.session_state.feedback_text = ""
+        st.session_state.feedback_rating = 3
         st.experimental_rerun()
