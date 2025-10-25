@@ -8,7 +8,7 @@ from datetime import datetime
 st.set_page_config(page_title="Outlet & Manager Dashboard", layout="wide")
 
 # ==========================================
-# LOAD ITEM DATA
+# LOAD ITEM DATA (for auto-fill)
 # ==========================================
 @st.cache_data
 def load_item_data():
@@ -20,63 +20,83 @@ def load_item_data():
 item_data = load_item_data()
 
 # ==========================================
-# LOGIN SYSTEM
+# LOGIN DATA
 # ==========================================
 outlets = [
-    "Hilal", "Safa Super", "Azhar HP", "Azhar", "Blue Pearl", "Fida", "Hadeqat",
-    "Jais", "Sabah", "Sahat", "Shams salem", "Shams Liwan", "Superstore",
-    "Tay Tay", "Safa oudmehta", "Port saeed"
+    "Hilal", "Safa Super", "Azhar HP", "Azhar", "Blue Pearl", "Fida",
+    "Hadeqat", "Jais", "Sabah", "Sahat", "Shams salem", "Shams Liwan",
+    "Superstore", "Tay Tay", "Safa oudmehta", "Port saeed"
 ]
 
-users = {
-    "almadina": {"password": "123123", "role": "outlet"},
-    "manager1": {"password": "1234512345", "role": "manager"},
-    "manager2": {"password": "1234512345", "role": "manager"},
-    "manager3": {"password": "1234512345", "role": "manager"}
-}
+managers = ["Manager 1", "Manager 2", "Manager 3"]
+password_outlet = "123123"
+password_manager = "1234512345"
 
-# Initialize session state
-for key in ["logged_in", "user_role", "selected_outlet", "submitted_items"]:
+# ==========================================
+# SESSION VARIABLES
+# ==========================================
+for key in ["logged_in", "role", "selected_outlet", "submitted_items", "manager_form"]:
     if key not in st.session_state:
-        st.session_state[key] = "" if key != "submitted_items" else []
+        if key in ["submitted_items", "manager_form"]:
+            st.session_state[key] = []
+        else:
+            st.session_state[key] = None
 
 # ==========================================
 # LOGIN PAGE
 # ==========================================
 if not st.session_state.logged_in:
-    st.title("🔐 Login")
-    username = st.text_input("Username", placeholder="Enter username")
-    pwd = st.text_input("Password", type="password")
+    st.title("🔐 Login Page")
+    role = st.radio("Login As:", ["Outlet", "Manager"])
+    username = st.text_input("Username")
 
-    if st.button("Login"):
-        if username in users and pwd == users[username]["password"]:
-            st.session_state.logged_in = True
-            st.session_state.user_role = users[username]["role"]
-            st.experimental_rerun()
-        else:
-            st.error("❌ Invalid username or password")
+    if role == "Outlet":
+        outlet = st.selectbox("Select your outlet", outlets)
+        pwd = st.text_input("Password", type="password")
+        if st.button("Login"):
+            if username == "almadina" and pwd == password_outlet:
+                st.session_state.logged_in = True
+                st.session_state.role = "Outlet"
+                st.session_state.selected_outlet = outlet
+                st.experimental_rerun()
+            else:
+                st.error("❌ Invalid username or password")
+
+    elif role == "Manager":
+        manager = st.selectbox("Select your name", managers)
+        pwd = st.text_input("Password", type="password")
+        if st.button("Login"):
+            if pwd == password_manager:
+                st.session_state.logged_in = True
+                st.session_state.role = "Manager"
+                st.session_state.selected_outlet = manager
+                st.experimental_rerun()
+            else:
+                st.error("❌ Invalid username or password")
 
 # ==========================================
 # OUTLET DASHBOARD
 # ==========================================
-elif st.session_state.user_role == "outlet":
-    outlet_name = st.selectbox("🏪 Select Your Outlet", outlets)
+elif st.session_state.role == "Outlet":
+    outlet_name = st.session_state.selected_outlet
     st.markdown(f"<h2 style='text-align:center;'>🏪 {outlet_name} Dashboard</h2>", unsafe_allow_html=True)
-    st.sidebar.success("Logged in as Outlet")
 
+    # FORM TYPE
     form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"])
     st.markdown("---")
 
-    # FORM INPUTS
+    # INPUTS
     col1, col2, col3 = st.columns(3)
     with col1:
         barcode = st.text_input("Barcode")
     with col2:
         qty = st.number_input("Qty [PCS]", min_value=1, value=1)
     with col3:
-        expiry = st.date_input("Expiry Date") if form_type != "Damages" else None
+        expiry = None
+        if form_type != "Damages":
+            expiry = st.date_input("Expiry Date", datetime.now())
 
-    # Auto-fill item details
+    # AUTO FILL
     item_name, cost, selling, supplier = "", 0.0, 0.0, ""
     if barcode:
         match = item_data[item_data["Item Bar Code"].astype(str) == str(barcode)]
@@ -86,11 +106,22 @@ elif st.session_state.user_role == "outlet":
             selling = float(match.iloc[0]["Selling"])
             supplier = str(match.iloc[0]["LP Supplier"])
 
+    col4, col5, col6, col7 = st.columns(4)
+    with col4:
+        item_name = st.text_input("Item Name", value=item_name)
+    with col5:
+        st.number_input("Cost", value=cost, disabled=True)
+    with col6:
+        st.number_input("Selling Price", value=selling, disabled=True)
+    with col7:
+        supplier = st.text_input("Supplier Name", value=supplier)
+
     gp = ((selling - cost) / cost * 100) if cost else 0
-    st.info(f"💹 GP%: {gp:.2f}%")
+    st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
 
     remarks = st.text_area("Remarks [if any]")
 
+    # ADD TO LIST
     if st.button("➕ Add to List"):
         if barcode and item_name:
             st.session_state.submitted_items.append({
@@ -107,11 +138,11 @@ elif st.session_state.user_role == "outlet":
                 "Remarks": remarks,
                 "Outlet": outlet_name
             })
-            st.success("✅ Added successfully!")
+            st.success("✅ Added to list successfully!")
         else:
-            st.warning("⚠️ Enter barcode and item name")
+            st.warning("⚠️ Fill barcode and item before adding.")
 
-    # DISPLAY TABLE
+    # SHOW ITEMS
     if st.session_state.submitted_items:
         st.markdown("### 🧾 Items Added")
         df = pd.DataFrame(st.session_state.submitted_items)
@@ -123,30 +154,34 @@ elif st.session_state.user_role == "outlet":
                 st.success("✅ All data submitted (demo)")
                 st.session_state.submitted_items = []
         with col_delete:
-            if st.session_state.submitted_items:
-                to_delete = st.selectbox(
-                    "Select Item to Delete",
-                    options=[f"{i+1}. {item['Item Name']}" for i, item in enumerate(st.session_state.submitted_items)]
-                )
-                if st.button("❌ Delete Selected"):
-                    index = int(to_delete.split(".")[0]) - 1
-                    st.session_state.submitted_items.pop(index)
-                    st.success("✅ Item removed")
-                    st.experimental_rerun()
+            to_delete = st.selectbox(
+                "Select Item to Delete",
+                options=[f"{i+1}. {item['Item Name']}" for i, item in enumerate(st.session_state.submitted_items)]
+            )
+            if st.button("❌ Delete Selected"):
+                index = int(to_delete.split(".")[0]) - 1
+                st.session_state.submitted_items.pop(index)
+                st.success("✅ Item removed")
+                st.experimental_rerun()
+
+    if st.button("🚪 Logout"):
+        st.session_state.logged_in = False
+        st.experimental_rerun()
 
 # ==========================================
 # MANAGER DASHBOARD
 # ==========================================
-elif st.session_state.user_role == "manager":
-    st.sidebar.success("Logged in as Manager")
+elif st.session_state.role == "Manager":
+    st.markdown("<h2 style='text-align:center;'>🧍 Manager Outlet Visit Checklist</h2>", unsafe_allow_html=True)
 
-    st.title("🧾 Outlet Visit Form - Central Buyer")
-    outlet_selected = st.selectbox("🏪 Outlet Name", outlets)
+    outlet_selected = st.selectbox("Select Outlet", outlets)
     buyer_name = st.text_input("Buyer Name")
-    visit_date = st.date_input("Date", datetime.today())
+    visit_date = st.date_input("Date", datetime.now())
     managers_present = st.text_input("Managers Present")
 
-    st.markdown("### ✅ Store Checklist")
+    st.markdown("---")
+    st.markdown("### ✅ Checklist")
+
     checklist_items = [
         "Store Entrance area clean and tidy",
         "Shopping baskets/trolleys available & in good condition",
@@ -179,20 +214,26 @@ elif st.session_state.user_role == "manager":
         "LC products not displayed properly"
     ]
 
-    checklist_df = pd.DataFrame({
-        "Checklist Item": checklist_items,
-        "Status (OK/Not OK)": ["OK" for _ in checklist_items]
-    })
+    checklist_results = {}
+    for item in checklist_items:
+        status = st.radio(item, ["OK", "Not OK"], horizontal=True, key=item)
+        checklist_results[item] = status
 
-    edited_df = st.data_editor(checklist_df, use_container_width=True, num_rows="fixed")
+    st.markdown("---")
+    additional_comments = st.text_area("📝 Additional Comments")
 
-    additional_comments = st.text_area("🗒️ Additional Comments")
+    if st.button("📤 Submit Checklist"):
+        record = {
+            "Outlet Name": outlet_selected,
+            "Buyer Name": buyer_name,
+            "Date": visit_date.strftime("%d-%b-%Y"),
+            "Managers Present": managers_present,
+            "Checklist": checklist_results,
+            "Comments": additional_comments
+        }
+        st.session_state.manager_form.append(record)
+        st.success("✅ Checklist submitted successfully (demo)")
 
-    if st.button("📤 Submit Visit Report"):
-        st.success("✅ Report submitted successfully (demo)")
-        st.write("**Outlet:**", outlet_selected)
-        st.write("**Buyer:**", buyer_name)
-        st.write("**Managers Present:**", managers_present)
-        st.write("**Date:**", visit_date.strftime("%d-%b-%Y"))
-        st.dataframe(edited_df)
-        st.write("**Comments:**", additional_comments)
+    if st.button("🚪 Logout"):
+        st.session_state.logged_in = False
+        st.experimental_rerun()
