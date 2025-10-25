@@ -47,6 +47,7 @@ password = "123123"
 # Initialize session state variables
 for key in ["logged_in", "selected_outlet", "submitted_items", 
             "barcode_input", "qty_input", "expiry_input", "remarks_input",
+            "item_name_input", "supplier_input", # NEW: Added for explicit field clearing
             "submitted_feedback"]:
     if key not in st.session_state:
         if key == "submitted_items" or key == "submitted_feedback":
@@ -80,10 +81,7 @@ else:
     # Sidebar to select page
     page = st.sidebar.radio("📌 Select Page", ["Outlet Dashboard", "Customer Feedback"])
     
-    # Logout button in the sidebar
-    if st.sidebar.button("🚪 Logout"):
-        st.session_state.logged_in = False
-        st.rerun()
+    # The logout button has been removed as requested.
 
     # ==========================================
     # OUTLET DASHBOARD
@@ -104,6 +102,7 @@ else:
         # ==============================
         col1, col2, col3 = st.columns(3)
         with col1:
+            # Barcode input and binding
             barcode = st.text_input("Barcode", value=st.session_state.barcode_input, key="db_barcode_input")
             st.session_state.barcode_input = barcode
         with col2:
@@ -116,30 +115,41 @@ else:
             else:
                 expiry = None
 
-        # AUTO-FILL BASED ON BARCODE
-        item_name = ""
+        # --- AUTO-FILL LOGIC ---
         cost = 0.0
         selling = 0.0
-        supplier = ""
+
         if barcode and not item_data.empty:
             # Convert barcode column to string to ensure matching works correctly
             match = item_data[item_data["Item Bar Code"].astype(str).str.strip() == str(barcode).strip()]
             if not match.empty:
-                item_name = str(match.iloc[0]["Item Name"])
+                # If a match is found, update session state values with auto-fill data
+                st.session_state.item_name_input = str(match.iloc[0]["Item Name"])
                 cost = float(match.iloc[0]["Cost"])
                 selling = float(match.iloc[0]["Selling"])
-                supplier = str(match.iloc[0]["LP Supplier"])
-
+                st.session_state.supplier_input = str(match.iloc[0]["LP Supplier"])
+            # If no match is found, session state keeps the last manual or cleared value
+        
+        # --- INPUT FIELDS USING SESSION STATE ---
         col4, col5, col6, col7 = st.columns(4)
         with col4:
-            item_name = st.text_input("Item Name", value=item_name)
+            # Bind Item Name to session state
+            item_name = st.text_input("Item Name", 
+                                      value=st.session_state.item_name_input, 
+                                      key="db_item_name_input_key")
+            st.session_state.item_name_input = item_name # Capture user manual edits
         with col5:
             st.number_input("Cost", value=cost, disabled=True, format="%.2f")
         with col6:
             st.number_input("Selling Price", value=selling, disabled=True, format="%.2f")
         with col7:
-            supplier = st.text_input("Supplier Name", value=supplier)
+            # Bind Supplier Name to session state
+            supplier = st.text_input("Supplier Name", 
+                                     value=st.session_state.supplier_input,
+                                     key="db_supplier_input_key")
+            st.session_state.supplier_input = supplier # Capture user manual edits
 
+        # Recalculate GP based on the found (or default) cost/selling
         gp = ((selling - cost) / cost * 100) if cost else 0
         st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
 
@@ -150,6 +160,7 @@ else:
         # ADD TO LIST BUTTON
         # ==============================
         if st.button("➕ Add to List"):
+            # Use the latest values from the text inputs (which are already in local variables item_name and supplier)
             if barcode and item_name:
                 # Ensure expiry is correctly handled for display
                 expiry_display = expiry.strftime("%d-%b-%y") if expiry else ""
@@ -169,12 +180,16 @@ else:
                     "Outlet": outlet_name
                 })
                 st.success("✅ Added to list successfully!")
-                # CLEAR FORM INPUTS IN SESSION STATE
+                
+                # --- CLEAR ALL FORM INPUTS IN SESSION STATE ---
                 st.session_state.barcode_input = ""
                 st.session_state.qty_input = 1
                 st.session_state.expiry_input = datetime.now().date()
                 st.session_state.remarks_input = ""
-                st.rerun() # FIX: Changed to st.rerun()
+                st.session_state.item_name_input = ""   # CLEARED
+                st.session_state.supplier_input = ""    # CLEARED
+                
+                st.rerun() 
             else:
                 st.warning("⚠️ Fill barcode and item name before adding.")
 
@@ -192,7 +207,7 @@ else:
                     # Submit logic here (e.g., Google Sheets)
                     st.success(f"✅ All {len(st.session_state.submitted_items)} items submitted for {outlet_name} (demo)")
                     st.session_state.submitted_items = []
-                    st.rerun() # FIX: Changed to st.rerun()
+                    st.rerun() 
 
             with col_delete:
                 # Create options list for deletion
@@ -210,7 +225,7 @@ else:
                     if 0 <= index < len(st.session_state.submitted_items):
                         st.session_state.submitted_items.pop(index)
                         st.success("✅ Item removed")
-                        st.rerun() # FIX: Changed to st.rerun()
+                        st.rerun() 
                     else:
                         st.warning("Could not find the item to delete.")
 
@@ -259,4 +274,4 @@ else:
             # Clear all button
             if st.button("🗑 Clear All Feedback Records", type="primary"):
                 st.session_state.submitted_feedback = []
-                st.rerun() # FIX: Changed to st.rerun()
+                st.rerun()
