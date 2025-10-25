@@ -240,7 +240,7 @@ elif st.session_state.role == "Manager":
 
     checklist_results = {}
     for item in checklist_items:
-        status = st.radio(item, ["OK", "Not OK"], horizontal=True, key=item)
+        status = st.radio(item, ["OK", "Not OK","bad"], horizontal=True, key=item)
         checklist_results[item] = status
 
     st.markdown("---")
