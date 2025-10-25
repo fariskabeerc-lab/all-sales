@@ -112,15 +112,16 @@ else:
         name = st.text_input("Customer Name", value=st.session_state.feedback_name)
         feedback = st.text_area("Feedback / Comments", value=st.session_state.feedback_text)
 
-        # Emoji rating buttons with labels below
+        # Emoji rating buttons with labels below, aligned
         st.markdown("**Rating:**")
         emojis = ["😡", "😕", "😐", "🙂", "😃"]
         labels = ["Very Bad", "Bad", "Neutral", "Good", "Excellent"]
         cols = st.columns(len(emojis))
         for i, col in enumerate(cols):
-            if col.button(emojis[i], key=f"emoji_{i}"):
-                st.session_state.feedback_rating = i + 1
-            col.markdown(f"<div style='text-align:center'>{labels[i]}</div>", unsafe_allow_html=True)
+            with col:
+                if st.button(emojis[i], key=f"emoji_{i}"):
+                    st.session_state.feedback_rating = i + 1
+                st.markdown(f"<div style='text-align:center'>{labels[i]}</div>", unsafe_allow_html=True)
 
         # Display selected rating
         st.markdown(f"**Selected Rating:** {labels[st.session_state.feedback_rating-1]}")
