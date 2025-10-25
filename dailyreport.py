@@ -191,9 +191,6 @@ elif st.session_state.role == "Outlet":
                 st.success("✅ Item removed")
                 st.experimental_rerun()
 
-    if st.button("🚪 Logout"):
-        st.session_state.logged_in = False
-        st.experimental_rerun()
 
 # ==========================================
 # MANAGER DASHBOARD
