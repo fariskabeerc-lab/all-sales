@@ -72,106 +72,99 @@ else:
     page = st.sidebar.radio("📌 Select Page", ["Outlet Dashboard", "Customer Feedback"])
 
     # ==========================================
-    # OUTLET DASHBOARD
+    # OUTLET DASHBOARD (REVISED WITH st.form)
     # ==========================================
     if page == "Outlet Dashboard":
         outlet_name = st.session_state.selected_outlet
         st.markdown(f"<h2 style='text-align:center;'>🏪 {outlet_name} Dashboard</h2>", unsafe_allow_html=True)
         form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"])
         st.markdown("---")
+        
+        # --- Start of the Item Entry Form ---
+        with st.form("item_entry_form", clear_on_submit=True):
+            
+            # Use local keys for the form fields
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                # Note: Default values must be set directly since st.form is used
+                barcode = st.text_input("Barcode", key="form_barcode_input")
+            with col2:
+                qty = st.number_input("Qty [PCS]", min_value=1, value=1, key="form_qty_input")
+            with col3:
+                if form_type != "Damages":
+                    expiry = st.date_input("Expiry Date", datetime.now().date(), key="form_expiry_input")
+                else:
+                    expiry = None
 
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.text_input("Barcode", value=st.session_state.barcode_input, key="barcode_input")
-            barcode = st.session_state.barcode_input
-        with col2:
-            st.number_input("Qty [PCS]", min_value=1, value=st.session_state.qty_input, key="qty_input")
-            qty = st.session_state.qty_input
-        with col3:
-            if form_type != "Damages":
-                st.date_input("Expiry Date", st.session_state.expiry_input, key="expiry_input")
-                expiry = st.session_state.expiry_input
-            else:
-                expiry = None
+            # Auto-fill logic (must be run outside the form, or triggered differently)
+            # Since auto-fill logic depends on an input *change* and not *submission*, 
+            # we'll keep the logic outside the form and use the **last entered barcode**
+            # from the session state to pre-populate the non-form fields before the form.
+            # However, for simplicity and proper clearing, it's best to rely on *manual*
+            # entry or search-and-populate outside the form flow.
+            # In this revision, auto-fill is *disabled* inside the form to allow `clear_on_submit=True` to work.
+            
+            # Manual inputs for item details
+            col4, col5, col6, col7 = st.columns(4)
+            with col4:
+                item_name = st.text_input("Item Name", key="form_item_name_input")
+            with col5:
+                cost_str = st.text_input("Cost", value="0.0", key="form_cost_input")
+            with col6:
+                selling_str = st.text_input("Selling Price", value="0.0", key="form_selling_input")
+            with col7:
+                supplier = st.text_input("Supplier Name", key="form_supplier_input")
 
-        # Auto-fill logic
-        if barcode and not item_data.empty:
-            match = item_data[item_data["Item Bar Code"].astype(str).str.strip() == str(barcode).strip()]
-            if not match.empty:
-                st.session_state.item_name_input = str(match.iloc[0]["Item Name"])
-                st.session_state.supplier_input = str(match.iloc[0]["LP Supplier"])
-            else:
-                st.session_state.item_name_input = ""
-                st.session_state.supplier_input = ""
-        elif not barcode:
-            st.session_state.item_name_input = ""
-            st.session_state.supplier_input = ""
-
-        col4, col5, col6, col7 = st.columns(4)
-        with col4:
-            st.text_input("Item Name", value=st.session_state.item_name_input, key="item_name_input")
-            item_name = st.session_state.item_name_input
-        with col5:
-            st.text_input("Cost", value=st.session_state.cost_input, key="cost_input")
+            # Try to convert cost and selling to float
             try:
-                cost = float(st.session_state.cost_input)
+                cost = float(cost_str)
             except ValueError:
                 cost = 0.0
                 st.error("Invalid Cost value. Using 0.0.")
-        with col6:
-            st.text_input("Selling Price", value=st.session_state.selling_input, key="selling_input")
             try:
-                selling = float(st.session_state.selling_input)
+                selling = float(selling_str)
             except ValueError:
                 selling = 0.0
                 st.error("Invalid Selling Price value. Using 0.0.")
-        with col7:
-            st.text_input("Supplier Name", value=st.session_state.supplier_input, key="supplier_input")
-            supplier = st.session_state.supplier_input
 
-        gp = ((selling - cost) / cost * 100) if cost else 0
-        st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
+            gp = ((selling - cost) / cost * 100) if cost else 0
+            st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
 
-        st.text_area("Remarks [if any]", value=st.session_state.remarks_input, key="remarks_input")
-        remarks = st.session_state.remarks_input
+            remarks = st.text_area("Remarks [if any]", key="form_remarks_input")
 
-        # Add to list button with clearing fix
-        if st.button("➕ Add to List"):
-            if barcode and item_name:
+            # Form submission button
+            submitted = st.form_submit_button("➕ Add to List")
+            # --- End of the Item Entry Form ---
+
+        # Logic for processing the submitted item
+        if submitted:
+            if barcode.strip() and item_name.strip():
                 expiry_display = expiry.strftime("%d-%b-%y") if expiry else ""
+                
+                # Append the submitted data to session state
                 st.session_state.submitted_items.append({
                     "Form Type": form_type,
-                    "Barcode": barcode,
-                    "Item Name": item_name,
+                    "Barcode": barcode.strip(),
+                    "Item Name": item_name.strip(),
                     "Qty": qty,
                     "Cost": round(cost, 2),
                     "Selling": round(selling, 2),
                     "Amount": round(cost * qty, 2),
                     "GP%": round(gp, 2),
                     "Expiry": expiry_display,
-                    "Supplier": supplier,
-                    "Remarks": remarks,
+                    "Supplier": supplier.strip(),
+                    "Remarks": remarks.strip(),
                     "Outlet": outlet_name
                 })
-                st.success("✅ Added to list successfully!")
-
-                # --- FORM CLEARING FIX ---
-                for k, v in {
-                    "barcode_input": "",
-                    "qty_input": 1,
-                    "expiry_input": datetime.now().date(),
-                    "remarks_input": "",
-                    "item_name_input": "",
-                    "supplier_input": "",
-                    "cost_input": "0.0",
-                    "selling_input": "0.0",
-                }.items():
-                    st.session_state[k] = v
-
+                st.success("✅ Added to list successfully! The form has been cleared.")
+                # st.rerun() is not strictly needed here unless you rely on the auto-fill logic 
+                # running again, but for a clean state, let's keep it.
                 st.rerun()
             else:
                 st.warning("⚠️ Fill barcode and item name before adding.")
 
+
+        # Displaying and managing the list
         if st.session_state.submitted_items:
             st.markdown("### 🧾 Items Added")
             df = pd.DataFrame(st.session_state.submitted_items)
@@ -186,13 +179,15 @@ else:
 
             with col_delete:
                 options = [f"{i+1}. {item['Item Name']} ({item['Qty']} pcs)" for i, item in enumerate(st.session_state.submitted_items)]
-                to_delete = st.selectbox("Select Item to Delete", options)
-                if st.button("❌ Delete Selected"):
-                    index = int(to_delete.split(".")[0]) - 1
-                    if 0 <= index < len(st.session_state.submitted_items):
-                        st.session_state.submitted_items.pop(index)
-                        st.success("✅ Item removed")
-                        st.rerun()
+                # Add a dummy option if no items exist, though the outer if prevents this
+                if options:
+                    to_delete = st.selectbox("Select Item to Delete", options)
+                    if st.button("❌ Delete Selected"):
+                        index = int(to_delete.split(".")[0]) - 1
+                        if 0 <= index < len(st.session_state.submitted_items):
+                            st.session_state.submitted_items.pop(index)
+                            st.success("✅ Item removed")
+                            st.rerun()
 
     # ==========================================
     # CUSTOMER FEEDBACK PAGE
