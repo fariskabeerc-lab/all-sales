@@ -7,19 +7,25 @@ st.title("📝 Customer Feedback Form")
 if "submitted_feedback" not in st.session_state:
     st.session_state.submitted_feedback = []
 
-if "form_counter" not in st.session_state:
-    st.session_state.form_counter = 0  # Will increase each submission
+# Initialize input keys if not exists
+for key in ["customer_name", "customer_email", "rating", "feedback"]:
+    if key not in st.session_state:
+        if key == "rating":
+            st.session_state[key] = 5
+        else:
+            st.session_state[key] = ""
 
-with st.form(f"feedback_form_{st.session_state.form_counter}"):
-    name = st.text_input("Customer Name", key=f"name_{st.session_state.form_counter}")
-    email = st.text_input("Email (Optional)", key=f"email_{st.session_state.form_counter}")
-    rating = st.slider("Rate Our Outlet", 1, 5, 5, key=f"rating_{st.session_state.form_counter}")
-    feedback = st.text_area("Your Feedback", key=f"feedback_{st.session_state.form_counter}")
+with st.form("feedback_form"):
+    name = st.text_input("Customer Name", value=st.session_state.customer_name, key="customer_name")
+    email = st.text_input("Email (Optional)", value=st.session_state.customer_email, key="customer_email")
+    rating = st.slider("Rate Our Outlet", 1, 5, value=st.session_state.rating, key="rating")
+    feedback = st.text_area("Your Feedback", value=st.session_state.feedback, key="feedback")
 
     submitted = st.form_submit_button("📤 Submit Feedback")
 
 if submitted:
     if name.strip() and feedback.strip():
+        # Append feedback
         st.session_state.submitted_feedback.append({
             "Customer Name": name,
             "Email": email,
@@ -28,8 +34,11 @@ if submitted:
             "Submitted At": datetime.now().strftime("%d-%b-%Y %H:%M:%S")
         })
         st.success("✅ Feedback submitted successfully!")
-        # Increment counter to reset form
-        st.session_state.form_counter += 1
+        # Clear inputs for next customer
+        st.session_state.customer_name = ""
+        st.session_state.customer_email = ""
+        st.session_state.rating = 5
+        st.session_state.feedback = ""
     else:
         st.warning("⚠️ Please fill at least your name and feedback.")
 
