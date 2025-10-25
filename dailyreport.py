@@ -5,7 +5,7 @@ from datetime import datetime
 # ==========================================
 # PAGE CONFIG
 # ==========================================
-st.set_page_config(page_title="Outlet Form Dashboard", layout="wide")
+st.set_page_config(page_title="Outlet & Feedback Dashboard", layout="wide")
 
 # ==========================================
 # LOAD ITEM DATA (for auto-fill)
@@ -29,13 +29,12 @@ outlets = [
 ]
 password = "123123"
 
-# ==========================================
-# SESSION STATE INITIALIZATION
-# ==========================================
+# Initialize session state variables
 for key in [
-    "logged_in", "selected_outlet", "submitted_items", "barcode_input", "qty_input",
-    "expiry_input", "remarks_input", "page",
-    "feedback_name", "feedback_text", "feedback_rating", "customer_feedback"
+    "logged_in", "selected_outlet", "submitted_items",
+    "barcode_input", "qty_input", "expiry_input", "remarks_input",
+    "page", "customer_feedback",
+    "feedback_name", "feedback_text", "feedback_rating"
 ]:
     if key not in st.session_state:
         if key in ["submitted_items", "customer_feedback"]:
@@ -45,9 +44,19 @@ for key in [
         elif key == "expiry_input":
             st.session_state[key] = datetime.now()
         elif key == "feedback_rating":
-            st.session_state[key] = 3  # default middle rating
+            st.session_state[key] = 3
         else:
             st.session_state[key] = ""
+
+# ==========================================
+# PAGE NAVIGATION
+# ==========================================
+if "page" not in st.session_state or st.session_state.page == "":
+    st.session_state.page = "Outlet Form"
+
+st.sidebar.title("Navigation")
+page_choice = st.sidebar.radio("Go to:", ["Outlet Form", "Customer Feedback"])
+st.session_state.page = page_choice
 
 # ==========================================
 # LOGIN PAGE
@@ -57,165 +66,164 @@ if not st.session_state.logged_in:
     username = st.text_input("Username", placeholder="Enter username")
     outlet = st.selectbox("Select your outlet", outlets)
     pwd = st.text_input("Password", type="password")
-
     if st.button("Login"):
         if username == "almadina" and pwd == password:
             st.session_state.logged_in = True
             st.session_state.selected_outlet = outlet
-            st.session_state.page = "Outlet Form"
             st.experimental_rerun()
         else:
             st.error("❌ Invalid username or password")
 
 # ==========================================
-# MAIN DASHBOARD
+# OUTLET FORM PAGE
 # ==========================================
-else:
+elif st.session_state.logged_in and st.session_state.page == "Outlet Form":
     outlet_name = st.session_state.selected_outlet
     st.markdown(f"<h2 style='text-align:center;'>🏪 {outlet_name} Dashboard</h2>", unsafe_allow_html=True)
 
-    # Sidebar page selection
-    page = st.sidebar.radio("📌 Select Page", ["Outlet Form", "Customer Feedback"])
-    st.session_state.page = page
+    # FORM TYPE SELECTION
+    form_type = st.sidebar.radio(
+        "📋 Select Form Type",
+        ["Expiry", "Damages", "Near Expiry"]
+    )
+    st.markdown("---")
 
-    # --------------------------
-    # OUTLET FORM PAGE
-    # --------------------------
-    if st.session_state.page == "Outlet Form":
-        form_type = st.sidebar.radio(
-            "📋 Select Form Type",
-            ["Expiry", "Damages", "Near Expiry"]
-        )
-        st.markdown("---")
+    # ==============================
+    # FORM INPUTS
+    # ==============================
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        barcode = st.text_input("Barcode", value=st.session_state.barcode_input)
+        st.session_state.barcode_input = barcode
+    with col2:
+        qty = st.number_input("Qty [PCS]", min_value=1, value=st.session_state.qty_input)
+        st.session_state.qty_input = qty
+    with col3:
+        expiry = None
+        if form_type != "Damages":
+            expiry = st.date_input("Expiry Date", st.session_state.expiry_input)
+            st.session_state.expiry_input = expiry
 
-        # Form Inputs
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            barcode = st.text_input("Barcode", value=st.session_state.barcode_input)
-            st.session_state.barcode_input = barcode
-        with col2:
-            qty = st.number_input("Qty [PCS]", min_value=1, value=st.session_state.qty_input)
-            st.session_state.qty_input = qty
-        with col3:
-            expiry = None
-            if form_type != "Damages":
-                expiry = st.date_input("Expiry Date", st.session_state.expiry_input)
-                st.session_state.expiry_input = expiry
+    # AUTO-FILL BASED ON BARCODE
+    item_name, cost, selling, supplier = "", 0.0, 0.0, ""
+    if barcode:
+        match = item_data[item_data["Item Bar Code"].astype(str) == str(barcode)]
+        if not match.empty:
+            item_name = str(match.iloc[0]["Item Name"])
+            cost = float(match.iloc[0]["Cost"])
+            selling = float(match.iloc[0]["Selling"])
+            supplier = str(match.iloc[0]["LP Supplier"])
 
-        # Auto-fill item details
-        item_name = ""
-        cost = 0.0
-        selling = 0.0
-        supplier = ""
-        if barcode:
-            match = item_data[item_data["Item Bar Code"].astype(str) == str(barcode)]
-            if not match.empty:
-                item_name = str(match.iloc[0]["Item Name"])
-                cost = float(match.iloc[0]["Cost"])
-                selling = float(match.iloc[0]["Selling"])
-                supplier = str(match.iloc[0]["LP Supplier"])
+    col4, col5, col6, col7 = st.columns(4)
+    with col4:
+        item_name = st.text_input("Item Name", value=item_name)
+    with col5:
+        st.number_input("Cost", value=cost, disabled=True)
+    with col6:
+        st.number_input("Selling Price", value=selling, disabled=True)
+    with col7:
+        supplier = st.text_input("Supplier Name", value=supplier)
 
-        col4, col5, col6, col7 = st.columns(4)
-        with col4:
-            item_name = st.text_input("Item Name", value=item_name)
-        with col5:
-            st.number_input("Cost", value=cost, disabled=True)
-        with col6:
-            st.number_input("Selling Price", value=selling, disabled=True)
-        with col7:
-            supplier = st.text_input("Supplier Name", value=supplier)
+    gp = ((selling - cost) / cost * 100) if cost else 0
+    st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
 
-        gp = ((selling - cost) / cost * 100) if cost else 0
-        st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
+    remarks = st.text_area("Remarks [if any]", value=st.session_state.remarks_input)
+    st.session_state.remarks_input = remarks
 
-        remarks = st.text_area("Remarks [if any]", value=st.session_state.remarks_input)
-        st.session_state.remarks_input = remarks
-
-        # Add to list button
-        if st.button("➕ Add to List"):
-            if barcode and item_name:
-                st.session_state.submitted_items.append({
-                    "Form Type": form_type,
-                    "Barcode": barcode,
-                    "Item Name": item_name,
-                    "Qty": qty,
-                    "Cost": cost,
-                    "Selling": selling,
-                    "Amount": cost * qty,
-                    "GP%": round(gp, 2),
-                    "Expiry": expiry.strftime("%d-%b-%y") if expiry else "",
-                    "Supplier": supplier,
-                    "Remarks": remarks,
-                    "Outlet": outlet_name
-                })
-                st.success("✅ Added to list successfully!")
-                # Clear form inputs
-                st.session_state.barcode_input = ""
-                st.session_state.qty_input = 1
-                st.session_state.expiry_input = datetime.now()
-                st.session_state.remarks_input = ""
-            else:
-                st.warning("⚠️ Fill barcode and item before adding.")
-
-        # Display submitted items
-        if st.session_state.submitted_items:
-            st.markdown("### 🧾 Items Added")
-            df = pd.DataFrame(st.session_state.submitted_items)
-            st.dataframe(df, use_container_width=True)
-
-            col_submit, col_delete = st.columns([1, 1])
-            with col_submit:
-                if st.button("📤 Submit All"):
-                    st.success("✅ All data submitted (demo)")
-                    st.session_state.submitted_items = []
-            with col_delete:
-                to_delete = st.selectbox(
-                    "Select Item to Delete",
-                    options=[f"{i+1}. {item['Item Name']}" for i, item in enumerate(st.session_state.submitted_items)]
-                )
-                if st.button("❌ Delete Selected"):
-                    index = int(to_delete.split(".")[0]) - 1
-                    st.session_state.submitted_items.pop(index)
-                    st.success("✅ Item removed")
-                    st.experimental_rerun()
-
-    # --------------------------
-    # CUSTOMER FEEDBACK PAGE
-    # --------------------------
-    elif st.session_state.page == "Customer Feedback":
-        st.markdown("### 📝 Customer Feedback")
-
-        # Input fields bound to session_state
-        name = st.text_input("Customer Name", key="feedback_name")
-        feedback = st.text_area("Feedback / Comments", key="feedback_text")
-
-        # Slider rating (1–5)
-        st.markdown("**Rating:**")
-        labels = ["Very Bad", "Bad", "Neutral", "Good", "Excellent"]
-        rating = st.slider(
-            "Select Rating",
-            min_value=1,
-            max_value=5,
-            value=st.session_state.feedback_rating,
-            key="feedback_rating"
-        )
-        st.markdown(f"**Selected Rating:** {labels[rating-1]}")
-
-        # Submit feedback
-        if st.button("📤 Submit Feedback"):
-            st.session_state.customer_feedback.append({
-                "Customer Name": name,
-                "Feedback": feedback,
-                "Rating": labels[rating-1],
-                "Outlet": outlet_name,
-                "Date": datetime.now().strftime("%d-%b-%Y %H:%M")
+    # ==============================
+    # ADD TO LIST BUTTON
+    # ==============================
+    if st.button("➕ Add to List"):
+        if barcode and item_name:
+            st.session_state.submitted_items.append({
+                "Form Type": form_type,
+                "Barcode": barcode,
+                "Item Name": item_name,
+                "Qty": qty,
+                "Cost": cost,
+                "Selling": selling,
+                "Amount": cost * qty,
+                "GP%": round(gp, 2),
+                "Expiry": expiry.strftime("%d-%b-%y") if expiry else "",
+                "Supplier": supplier,
+                "Remarks": remarks,
+                "Outlet": outlet_name
             })
-            st.success("✅ Feedback submitted successfully!")
+            st.success("✅ Added to list successfully!")
+            # CLEAR FORM INPUTS
+            st.session_state.barcode_input = ""
+            st.session_state.qty_input = 1
+            st.session_state.expiry_input = datetime.now()
+            st.session_state.remarks_input = ""
+        else:
+            st.warning("⚠️ Fill barcode and item before adding.")
 
-            # Clear feedback form
-            st.session_state.feedback_name = ""
-            st.session_state.feedback_text = ""
-            st.session_state.feedback_rating = 3
+    # ==============================
+    # DISPLAY SUBMITTED ITEMS
+    # ==============================
+    if st.session_state.submitted_items:
+        st.markdown("### 🧾 Items Added")
+        df = pd.DataFrame(st.session_state.submitted_items)
+        st.dataframe(df, use_container_width=True)
 
-            st.info("Form cleared. You can enter a new feedback now.")
-            st.stop()  # Stop execution so cleared values render
+        col_submit, col_delete = st.columns([1, 1])
+        with col_submit:
+            if st.button("📤 Submit All"):
+                st.success("✅ All data submitted (demo)")
+                st.session_state.submitted_items = []
+        with col_delete:
+            to_delete = st.selectbox(
+                "Select Item to Delete",
+                options=[f"{i+1}. {item['Item Name']}" for i, item in enumerate(st.session_state.submitted_items)]
+            )
+            if st.button("❌ Delete Selected"):
+                index = int(to_delete.split(".")[0]) - 1
+                st.session_state.submitted_items.pop(index)
+                st.success("✅ Item removed")
+                st.experimental_rerun()
+
+    if st.button("🚪 Logout"):
+        st.session_state.logged_in = False
+        st.experimental_rerun()
+
+# ==========================================
+# CUSTOMER FEEDBACK PAGE
+# ==========================================
+elif st.session_state.logged_in and st.session_state.page == "Customer Feedback":
+    outlet_name = st.session_state.selected_outlet
+    st.markdown(f"<h2 style='text-align:center;'>💬 Customer Feedback - {outlet_name}</h2>", unsafe_allow_html=True)
+
+    # Feedback inputs
+    name = st.text_input("Customer Name", key="feedback_name")
+    feedback = st.text_area("Feedback / Comments", key="feedback_text")
+
+    # Slider rating
+    st.markdown("**Rating:**")
+    labels = ["Very Bad", "Bad", "Neutral", "Good", "Excellent"]
+    rating = st.slider(
+        "Select Rating",
+        min_value=1,
+        max_value=5,
+        value=st.session_state.feedback_rating,
+        key="feedback_rating"
+    )
+    st.markdown(f"**Selected Rating:** {labels[rating-1]}")
+
+    # Submit feedback
+    if st.button("📤 Submit Feedback"):
+        st.session_state.customer_feedback.append({
+            "Customer Name": name,
+            "Feedback": feedback,
+            "Rating": labels[rating-1],
+            "Outlet": outlet_name,
+            "Date": datetime.now().strftime("%d-%b-%Y %H:%M")
+        })
+        st.success("✅ Feedback submitted successfully!")
+
+        # Clear form safely
+        st.session_state.update({
+            "feedback_name": "",
+            "feedback_text": "",
+            "feedback_rating": 3
+        })
+        st.experimental_rerun()
