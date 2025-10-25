@@ -27,7 +27,6 @@ outlets = [
     "Hadeqat", "Jais", "Sabah", "Sahat", "Shams salem", "Shams Liwan",
     "Superstore", "Tay Tay", "Safa oudmehta", "Port saeed"
 ]
-
 managers = ["Manager 1", "Manager 2", "Manager 3"]
 password_outlet = "123123"
 password_manager = "1234512345"
@@ -58,7 +57,7 @@ if not st.session_state.logged_in:
     if role == "Outlet":
         outlet = st.selectbox("Select your outlet", outlets)
         pwd = st.text_input("Password", type="password")
-        if st.button("Login"):
+        if st.button("Login", key="login_outlet"):
             if username == "almadina" and pwd == password_outlet:
                 st.session_state.logged_in = True
                 st.session_state.role = "Outlet"
@@ -70,7 +69,7 @@ if not st.session_state.logged_in:
     elif role == "Manager":
         manager = st.selectbox("Select your name", managers)
         pwd = st.text_input("Password", type="password")
-        if st.button("Login"):
+        if st.button("Login", key="login_manager"):
             if pwd == password_manager:
                 st.session_state.logged_in = True
                 st.session_state.role = "Manager"
@@ -90,7 +89,7 @@ elif st.session_state.role == "Outlet":
     form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"])
     st.markdown("---")
 
-    # INPUTS
+    # FORM INPUTS
     col1, col2, col3 = st.columns(3)
     with col1:
         barcode = st.text_input("Barcode", value=st.session_state.barcode_input)
@@ -131,7 +130,7 @@ elif st.session_state.role == "Outlet":
     st.session_state.remarks_input = remarks
 
     # ADD TO LIST
-    if st.button("➕ Add to List"):
+    if st.button("➕ Add to List", key="add_to_list"):
         if barcode and item_name:
             st.session_state.submitted_items.append({
                 "Form Type": form_type,
@@ -147,18 +146,17 @@ elif st.session_state.role == "Outlet":
                 "Remarks": remarks,
                 "Outlet": outlet_name
             })
-            st.success("✅ Added to list successfully!")
-
-            # CLEAR FORM FOR NEXT ENTRY
+            # CLEAR FORM INPUTS
             st.session_state.barcode_input = ""
             st.session_state.qty_input = 1
             st.session_state.expiry_input = datetime.now()
             st.session_state.remarks_input = ""
+            st.success("✅ Added to list successfully!")
             st.experimental_rerun()
         else:
             st.warning("⚠️ Fill barcode and item before adding.")
 
-    # SHOW ITEMS
+    # SHOW SUBMITTED ITEMS
     if st.session_state.submitted_items:
         st.markdown("### 🧾 Items Added")
         df = pd.DataFrame(st.session_state.submitted_items)
@@ -166,22 +164,22 @@ elif st.session_state.role == "Outlet":
 
         col_submit, col_delete = st.columns([1, 1])
         with col_submit:
-            if st.button("📤 Submit All"):
+            if st.button("📤 Submit All", key="submit_all"):
                 st.success("✅ All data submitted (demo)")
                 st.session_state.submitted_items = []
-
+                st.experimental_rerun()
         with col_delete:
             to_delete = st.selectbox(
                 "Select Item to Delete",
                 options=[f"{i+1}. {item['Item Name']}" for i, item in enumerate(st.session_state.submitted_items)]
             )
-            if st.button("❌ Delete Selected"):
+            if st.button("❌ Delete Selected", key="delete_item"):
                 index = int(to_delete.split(".")[0]) - 1
                 st.session_state.submitted_items.pop(index)
                 st.success("✅ Item removed")
                 st.experimental_rerun()
 
-    if st.button("🚪 Logout"):
+    if st.button("🚪 Logout", key="logout_outlet"):
         st.session_state.logged_in = False
         st.experimental_rerun()
 
@@ -198,6 +196,7 @@ elif st.session_state.role == "Manager":
 
     st.markdown("---")
     st.markdown("### ✅ Checklist Items")
+
     checklist_items = [
         "Store Entrance area clean and tidy",
         "Shopping baskets/trolleys available & in good condition",
@@ -232,13 +231,12 @@ elif st.session_state.role == "Manager":
 
     checklist_results = {}
     for item in checklist_items:
-        status = st.radio(item, ["OK", "Not OK"], horizontal=True, key=item)
-        checklist_results[item] = status
+        checklist_results[item] = st.radio(item, ["OK", "Not OK"], horizontal=True, key=f"chk_{item}")
 
     st.markdown("---")
     additional_comments = st.text_area("📝 Additional Comments")
 
-    if st.button("📤 Submit Checklist"):
+    if st.button("📤 Submit Checklist", key="submit_checklist"):
         record = {
             "Outlet Name": outlet_selected,
             "Buyer Name": buyer_name,
@@ -249,7 +247,8 @@ elif st.session_state.role == "Manager":
         }
         st.session_state.manager_form.append(record)
         st.success("✅ Checklist submitted successfully (demo)")
+        st.experimental_rerun()
 
-    if st.button("🚪 Logout"):
+    if st.button("🚪 Logout", key="logout_manager"):
         st.session_state.logged_in = False
         st.experimental_rerun()
