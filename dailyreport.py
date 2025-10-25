@@ -47,7 +47,8 @@ password = "123123"
 # Initialize session state variables
 for key in ["logged_in", "selected_outlet", "submitted_items", 
             "barcode_input", "qty_input", "expiry_input", "remarks_input",
-            "item_name_input", "supplier_input", # NEW: Added for explicit field clearing
+            "item_name_input", "supplier_input", 
+            "cost_input", "selling_input", # NEW: Added for editable cost/selling
             "submitted_feedback"]:
     if key not in st.session_state:
         if key == "submitted_items" or key == "submitted_feedback":
@@ -56,6 +57,8 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
             st.session_state[key] = 1
         elif key == "expiry_input":
             st.session_state[key] = datetime.now().date() # Use date object for st.date_input
+        elif key == "cost_input" or key == "selling_input": # Initialize cost/selling to 0.0
+             st.session_state[key] = 0.0
         else:
             st.session_state[key] = ""
 
@@ -98,7 +101,7 @@ else:
         st.markdown("---")
 
         # ==============================
-        # FORM INPUTS
+        # FORM INPUTS (Top Row)
         # ==============================
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -115,42 +118,67 @@ else:
             else:
                 expiry = None
 
-        # --- AUTO-FILL LOGIC ---
-        cost = 0.0
-        selling = 0.0
-
+        # --- AUTO-FILL LOGIC (Only Item Name and Supplier) ---
         if barcode and not item_data.empty:
-            # Convert barcode column to string to ensure matching works correctly
             match = item_data[item_data["Item Bar Code"].astype(str).str.strip() == str(barcode).strip()]
             if not match.empty:
-                # If a match is found, update session state values with auto-fill data
+                # Only update session state for item name and supplier from data
                 st.session_state.item_name_input = str(match.iloc[0]["Item Name"])
-                cost = float(match.iloc[0]["Cost"])
-                selling = float(match.iloc[0]["Selling"])
                 st.session_state.supplier_input = str(match.iloc[0]["LP Supplier"])
-            # If no match is found, session state keeps the last manual or cleared value
+            else:
+                 # If no match, clear the auto-fill fields
+                 st.session_state.item_name_input = ""
+                 st.session_state.supplier_input = ""
+        elif not barcode:
+            # If barcode is cleared, clear auto-fill fields
+             st.session_state.item_name_input = ""
+             st.session_state.supplier_input = ""
         
-        # --- INPUT FIELDS USING SESSION STATE ---
+        # --- INPUT FIELDS USING SESSION STATE (Bottom Row) ---
         col4, col5, col6, col7 = st.columns(4)
+        
+        # 1. Item Name (Auto-filled, Editable)
         with col4:
-            # Bind Item Name to session state
             item_name = st.text_input("Item Name", 
                                       value=st.session_state.item_name_input, 
                                       key="db_item_name_input_key")
             st.session_state.item_name_input = item_name # Capture user manual edits
+            
+        # 2. Cost (Now Editable)
         with col5:
-            st.number_input("Cost", value=cost, disabled=True, format="%.2f")
+            cost_str = st.text_input("Cost", 
+                                     value=str(st.session_state.cost_input), 
+                                     key="db_cost_input_key")
+            try:
+                # Convert string input to float for calculation/storage
+                cost = float(cost_str) if cost_str else 0.0
+                st.session_state.cost_input = cost
+            except ValueError:
+                cost = 0.0
+                st.error("Invalid Cost value. Using 0.0 for calculation.")
+                
+        # 3. Selling Price (Now Editable)
         with col6:
-            st.number_input("Selling Price", value=selling, disabled=True, format="%.2f")
+            selling_str = st.text_input("Selling Price", 
+                                        value=str(st.session_state.selling_input), 
+                                        key="db_selling_input_key")
+            try:
+                # Convert string input to float for calculation/storage
+                selling = float(selling_str) if selling_str else 0.0
+                st.session_state.selling_input = selling
+            except ValueError:
+                selling = 0.0
+                st.error("Invalid Selling Price value. Using 0.0 for calculation.")
+                
+        # 4. Supplier Name (Auto-filled, Editable)
         with col7:
-            # Bind Supplier Name to session state
             supplier = st.text_input("Supplier Name", 
                                      value=st.session_state.supplier_input,
                                      key="db_supplier_input_key")
             st.session_state.supplier_input = supplier # Capture user manual edits
 
-        # Recalculate GP based on the found (or default) cost/selling
-        gp = ((selling - cost) / cost * 100) if cost else 0
+        # Recalculate GP based on the user-edited/default cost/selling values
+        gp = ((selling - cost) / cost * 100) if cost and cost != 0 else 0
         st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
 
         remarks = st.text_area("Remarks [if any]", value=st.session_state.remarks_input)
@@ -160,7 +188,7 @@ else:
         # ADD TO LIST BUTTON
         # ==============================
         if st.button("➕ Add to List"):
-            # Use the latest values from the text inputs (which are already in local variables item_name and supplier)
+            # Use the latest values from the inputs
             if barcode and item_name:
                 # Ensure expiry is correctly handled for display
                 expiry_display = expiry.strftime("%d-%b-%y") if expiry else ""
@@ -170,8 +198,8 @@ else:
                     "Barcode": barcode,
                     "Item Name": item_name,
                     "Qty": qty,
-                    "Cost": round(cost, 2),
-                    "Selling": round(selling, 2),
+                    "Cost": round(cost, 2), # Use user-entered cost
+                    "Selling": round(selling, 2), # Use user-entered selling
                     "Amount": round(cost * qty, 2),
                     "GP%": round(gp, 2),
                     "Expiry": expiry_display,
@@ -186,8 +214,10 @@ else:
                 st.session_state.qty_input = 1
                 st.session_state.expiry_input = datetime.now().date()
                 st.session_state.remarks_input = ""
-                st.session_state.item_name_input = ""   # CLEARED
-                st.session_state.supplier_input = ""    # CLEARED
+                st.session_state.item_name_input = ""
+                st.session_state.supplier_input = ""
+                st.session_state.cost_input = 0.0    # CLEARED/RESET
+                st.session_state.selling_input = 0.0 # CLEARED/RESET
                 
                 st.rerun() 
             else:
