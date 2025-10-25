@@ -12,18 +12,7 @@ st.set_page_config(page_title="Outlet & Feedback Dashboard", layout="wide")
 # ==========================================
 @st.cache_data
 def load_item_data():
-    # NOTE: You must have an 'alllist.xlsx' file in the same directory for this to work.
-    # For a runnable demo without the file, uncomment the lines below and comment out the excel lines.
-    # data = {
-    #     "Item Bar Code": ["123", "456"], 
-    #     "Item Name": ["Apples", "Bananas"], 
-    #     "Cost": [1.50, 0.75], 
-    #     "Selling": [2.50, 1.25], 
-    #     "LP Supplier": ["Supplier A", "Supplier B"]
-    # }
-    # return pd.DataFrame(data)
-    
-    file_path = "alllist.xlsx"  # Replace with your Excel path
+    file_path = "alllist.xlsx"
     try:
         df = pd.read_excel(file_path)
         df.columns = df.columns.str.strip()
@@ -45,20 +34,20 @@ outlets = [
 password = "123123"
 
 # Initialize session state variables
-for key in ["logged_in", "selected_outlet", "submitted_items", 
+for key in ["logged_in", "selected_outlet", "submitted_items",
             "barcode_input", "qty_input", "expiry_input", "remarks_input",
-            "item_name_input", "supplier_input", 
-            "cost_input", "selling_input", 
+            "item_name_input", "supplier_input",
+            "cost_input", "selling_input",
             "submitted_feedback"]:
     if key not in st.session_state:
-        if key == "submitted_items" or key == "submitted_feedback":
+        if key in ["submitted_items", "submitted_feedback"]:
             st.session_state[key] = []
         elif key == "qty_input":
             st.session_state[key] = 1
         elif key == "expiry_input":
-            st.session_state[key] = datetime.now().date() # Use date object for st.date_input
-        elif key == "cost_input" or key == "selling_input": # Initialize as string "0.0" for st.text_input
-             st.session_state[key] = "0.0"
+            st.session_state[key] = datetime.now().date()
+        elif key in ["cost_input", "selling_input"]:
+            st.session_state[key] = "0.0"
         else:
             st.session_state[key] = ""
 
@@ -66,7 +55,6 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
 # PAGE SELECTION
 # ==========================================
 if not st.session_state.logged_in:
-    # LOGIN PAGE
     st.title("🔐 Outlet Login")
     username = st.text_input("Username", placeholder="Enter username")
     outlet = st.selectbox("Select your outlet", outlets)
@@ -81,10 +69,7 @@ if not st.session_state.logged_in:
             st.error("❌ Invalid username or password")
 
 else:
-    # Sidebar to select page
     page = st.sidebar.radio("📌 Select Page", ["Outlet Dashboard", "Customer Feedback"])
-    
-    # The logout button has been removed as requested.
 
     # ==========================================
     # OUTLET DASHBOARD
@@ -92,114 +77,75 @@ else:
     if page == "Outlet Dashboard":
         outlet_name = st.session_state.selected_outlet
         st.markdown(f"<h2 style='text-align:center;'>🏪 {outlet_name} Dashboard</h2>", unsafe_allow_html=True)
-
-        # FORM TYPE SELECTION
-        form_type = st.sidebar.radio(
-            "📋 Select Form Type",
-            ["Expiry", "Damages", "Near Expiry"]
-        )
+        form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"])
         st.markdown("---")
 
-        # ==============================
-        # FORM INPUTS (Top Row)
-        # ==============================
         col1, col2, col3 = st.columns(3)
         with col1:
-            # Barcode input and binding
             st.text_input("Barcode", value=st.session_state.barcode_input, key="barcode_input")
-            barcode = st.session_state.barcode_input # Read current value
+            barcode = st.session_state.barcode_input
         with col2:
             st.number_input("Qty [PCS]", min_value=1, value=st.session_state.qty_input, key="qty_input")
-            qty = st.session_state.qty_input # Read current value
+            qty = st.session_state.qty_input
         with col3:
             if form_type != "Damages":
                 st.date_input("Expiry Date", st.session_state.expiry_input, key="expiry_input")
-                expiry = st.session_state.expiry_input # Read current value
+                expiry = st.session_state.expiry_input
             else:
                 expiry = None
 
-        # --- AUTO-FILL LOGIC (Only Item Name and Supplier) ---
+        # Auto-fill logic
         if barcode and not item_data.empty:
             match = item_data[item_data["Item Bar Code"].astype(str).str.strip() == str(barcode).strip()]
             if not match.empty:
-                # Only update session state for item name and supplier from data
                 st.session_state.item_name_input = str(match.iloc[0]["Item Name"])
                 st.session_state.supplier_input = str(match.iloc[0]["LP Supplier"])
-            # If no match, clear the auto-fill fields in session state
-            elif st.session_state.item_name_input != "":
-                 st.session_state.item_name_input = ""
-                 st.session_state.supplier_input = ""
+            else:
+                st.session_state.item_name_input = ""
+                st.session_state.supplier_input = ""
         elif not barcode:
-            # If barcode is cleared, clear auto-fill fields
-             st.session_state.item_name_input = ""
-             st.session_state.supplier_input = ""
-        
-        # --- INPUT FIELDS USING SESSION STATE (Bottom Row) ---
+            st.session_state.item_name_input = ""
+            st.session_state.supplier_input = ""
+
         col4, col5, col6, col7 = st.columns(4)
-        
-        # 1. Item Name (Auto-filled, Editable)
         with col4:
-            st.text_input("Item Name", 
-                          value=st.session_state.item_name_input, 
-                          key="item_name_input")
-            item_name = st.session_state.item_name_input # Read current value
-            
-        # 2. Cost (Now Editable)
+            st.text_input("Item Name", value=st.session_state.item_name_input, key="item_name_input")
+            item_name = st.session_state.item_name_input
         with col5:
-            st.text_input("Cost", 
-                          value=st.session_state.cost_input, 
-                          key="cost_input") 
-            cost_str = st.session_state.cost_input # This is a string from the text_input
+            st.text_input("Cost", value=st.session_state.cost_input, key="cost_input")
             try:
-                # Convert string input to float for calculation/storage
-                cost = float(cost_str) if cost_str else 0.0
+                cost = float(st.session_state.cost_input)
             except ValueError:
                 cost = 0.0
-                st.error("Invalid Cost value. Using 0.0 for calculation.")
-                
-        # 3. Selling Price (Now Editable)
+                st.error("Invalid Cost value. Using 0.0.")
         with col6:
-            st.text_input("Selling Price", 
-                          value=st.session_state.selling_input, 
-                          key="selling_input") 
-            selling_str = st.session_state.selling_input # This is a string from the text_input
+            st.text_input("Selling Price", value=st.session_state.selling_input, key="selling_input")
             try:
-                # Convert string input to float for calculation/storage
-                selling = float(selling_str) if selling_str else 0.0
+                selling = float(st.session_state.selling_input)
             except ValueError:
                 selling = 0.0
-                st.error("Invalid Selling Price value. Using 0.0 for calculation.")
-                
-        # 4. Supplier Name (Auto-filled, Editable)
+                st.error("Invalid Selling Price value. Using 0.0.")
         with col7:
-            st.text_input("Supplier Name", 
-                                     value=st.session_state.supplier_input,
-                                     key="supplier_input")
-            supplier = st.session_state.supplier_input # Read current value
+            st.text_input("Supplier Name", value=st.session_state.supplier_input, key="supplier_input")
+            supplier = st.session_state.supplier_input
 
-        # Recalculate GP based on the user-edited/default cost/selling values
-        gp = ((selling - cost) / cost * 100) if cost and cost != 0 else 0
+        gp = ((selling - cost) / cost * 100) if cost else 0
         st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
 
         st.text_area("Remarks [if any]", value=st.session_state.remarks_input, key="remarks_input")
-        remarks = st.session_state.remarks_input # Read current value
+        remarks = st.session_state.remarks_input
 
-        # ==============================
-        # ADD TO LIST BUTTON
-        # ==============================
+        # Add to list button with clearing fix
         if st.button("➕ Add to List"):
-            # Use the latest values from the inputs
             if barcode and item_name:
-                # Ensure expiry is correctly handled for display
                 expiry_display = expiry.strftime("%d-%b-%y") if expiry else ""
-                
                 st.session_state.submitted_items.append({
                     "Form Type": form_type,
                     "Barcode": barcode,
                     "Item Name": item_name,
                     "Qty": qty,
-                    "Cost": round(cost, 2), # Use user-entered cost
-                    "Selling": round(selling, 2), # Use user-entered selling
+                    "Cost": round(cost, 2),
+                    "Selling": round(selling, 2),
                     "Amount": round(cost * qty, 2),
                     "GP%": round(gp, 2),
                     "Expiry": expiry_display,
@@ -208,24 +154,24 @@ else:
                     "Outlet": outlet_name
                 })
                 st.success("✅ Added to list successfully!")
-                
-                # --- CLEAR ALL FORM INPUTS IN SESSION STATE ---
-                st.session_state.barcode_input = ""
-                st.session_state.qty_input = 1
-                st.session_state.expiry_input = datetime.now().date()
-                st.session_state.remarks_input = ""
-                st.session_state.item_name_input = ""
-                st.session_state.supplier_input = ""
-                st.session_state.cost_input = "0.0"    # CLEARED/RESET to string
-                st.session_state.selling_input = "0.0" # CLEARED/RESET to string
-                
-                st.rerun() 
+
+                # --- FORM CLEARING FIX ---
+                for k, v in {
+                    "barcode_input": "",
+                    "qty_input": 1,
+                    "expiry_input": datetime.now().date(),
+                    "remarks_input": "",
+                    "item_name_input": "",
+                    "supplier_input": "",
+                    "cost_input": "0.0",
+                    "selling_input": "0.0",
+                }.items():
+                    st.session_state[k] = v
+
+                st.rerun()
             else:
                 st.warning("⚠️ Fill barcode and item name before adding.")
 
-        # ==============================
-        # DISPLAY SUBMITTED ITEMS
-        # ==============================
         if st.session_state.submitted_items:
             st.markdown("### 🧾 Items Added")
             df = pd.DataFrame(st.session_state.submitted_items)
@@ -234,31 +180,19 @@ else:
             col_submit, col_delete = st.columns([1, 1])
             with col_submit:
                 if st.button("📤 Submit All"):
-                    # Submit logic here (e.g., Google Sheets)
                     st.success(f"✅ All {len(st.session_state.submitted_items)} items submitted for {outlet_name} (demo)")
                     st.session_state.submitted_items = []
-                    st.rerun() 
+                    st.rerun()
 
             with col_delete:
-                # Create options list for deletion
                 options = [f"{i+1}. {item['Item Name']} ({item['Qty']} pcs)" for i, item in enumerate(st.session_state.submitted_items)]
-                
-                to_delete = st.selectbox(
-                    "Select Item to Delete",
-                    options=options
-                )
-                
+                to_delete = st.selectbox("Select Item to Delete", options)
                 if st.button("❌ Delete Selected"):
-                    # Extract the index from the selected string (e.g., "1. Apples (1 pcs)" -> 0)
                     index = int(to_delete.split(".")[0]) - 1
-                    
                     if 0 <= index < len(st.session_state.submitted_items):
                         st.session_state.submitted_items.pop(index)
                         st.success("✅ Item removed")
-                        st.rerun() 
-                    else:
-                        st.warning("Could not find the item to delete.")
-
+                        st.rerun()
 
     # ==========================================
     # CUSTOMER FEEDBACK PAGE
@@ -269,12 +203,11 @@ else:
         st.markdown(f"Submitting feedback for **{outlet_name}**")
         st.markdown("---")
 
-        with st.form("feedback_form", clear_on_submit=True): # FIX: Added clear_on_submit=True
+        with st.form("feedback_form", clear_on_submit=True):
             name = st.text_input("Customer Name")
             email = st.text_input("Email (Optional)")
             rating = st.slider("Rate Our Outlet", 1, 5, 5)
             feedback = st.text_area("Your Feedback (Required)")
-
             submitted = st.form_submit_button("📤 Submit Feedback")
 
         if submitted:
@@ -283,25 +216,19 @@ else:
                     "Customer Name": name,
                     "Email": email if email else "N/A",
                     "Rating": f"{rating} / 5",
-                    "Outlet": outlet_name, # NEW: Added Outlet name
+                    "Outlet": outlet_name,
                     "Feedback": feedback,
                     "Submitted At": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 })
-                # UPDATED: Confirm form cleared
                 st.success("✅ Feedback submitted successfully! The form has been cleared.")
             else:
-                # UPDATED: More specific error message
-                st.error("⚠️ Submission failed. Please provide your **Customer Name** and **Feedback**.")
+                st.error("⚠️ Please fill Customer Name and Feedback before submitting.")
 
-        # Display all feedback
         if st.session_state.submitted_feedback:
             st.markdown("### 🗂 Recent Customer Feedback")
-            
-            # Convert to DataFrame and reverse order to show latest first
             df = pd.DataFrame(st.session_state.submitted_feedback)
             st.dataframe(df.iloc[::-1], use_container_width=True, hide_index=True)
-            
-            # Clear all button
+
             if st.button("🗑 Clear All Feedback Records", type="primary"):
                 st.session_state.submitted_feedback = []
                 st.rerun()
