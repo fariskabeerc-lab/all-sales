@@ -59,8 +59,10 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
 
 # --- Auto-fill/Lookup Logic Function (Callable via button) ---
 def lookup_item_and_update_state():
-    barcode = st.session_state.barcode_input # Get the current value from the input widget
+    # Get the current value from the input widget
+    barcode = st.session_state.barcode_input 
     if barcode and not item_data.empty:
+        # Ensure comparison is done on string types and stripped
         match = item_data[item_data["Item Bar Code"].astype(str).str.strip() == str(barcode).strip()]
         if not match.empty:
             st.session_state.item_name_input = str(match.iloc[0]["Item Name"])
@@ -74,7 +76,7 @@ def lookup_item_and_update_state():
         st.session_state.item_name_input = ""
         st.session_state.supplier_input = ""
         st.warning("⚠️ Please enter a barcode to lookup.")
-    # Rerun is needed to refresh the form fields with new session state defaults
+    # Rerun is needed here to refresh the form fields with new session state defaults
     st.rerun() 
 # -------------------------------------------------------------
 
@@ -194,14 +196,14 @@ else:
                 
                 # --- CLEAR ALL COLUMNS AS REQUESTED ---
                 # Clear all related session state variables to reset the fields for the next entry
-                # This clears the Barcode input (outside the form) and the auto-fill defaults
                 st.session_state.barcode_input = ""
                 st.session_state.item_name_input = ""
                 st.session_state.supplier_input = ""
                 st.session_state.cost_input = "0.0"
                 st.session_state.selling_input = "0.0"
-                # st.rerun() is necessary to apply these session state changes (especially barcode_input)
-                st.rerun()
+                
+                # The form submission automatically triggers the rerun, applying the state changes.
+                # Do NOT call st.rerun() here to avoid the StreamlitAPIException.
             else:
                 st.warning("⚠️ Fill barcode and item name before adding.")
 
