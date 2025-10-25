@@ -35,10 +35,11 @@ password_outlet = "123123"
 for key in [
     "logged_in", "selected_outlet", "submitted_items",
     "barcode_input", "qty_input", "expiry_input", "remarks_input",
-    "item_name", "cost", "selling", "supplier"
+    "item_name", "cost", "selling", "supplier",
+    "customer_feedback", "page"
 ]:
     if key not in st.session_state:
-        if key == "submitted_items":
+        if key in ["submitted_items", "customer_feedback"]:
             st.session_state[key] = []
         elif key == "qty_input":
             st.session_state[key] = 1
@@ -46,6 +47,8 @@ for key in [
             st.session_state[key] = datetime.now()
         elif key in ["cost", "selling"]:
             st.session_state[key] = 0.0
+        elif key == "page":
+            st.session_state[key] = "Outlet Form"
         else:
             st.session_state[key] = ""
 
@@ -85,7 +88,40 @@ else:
     outlet_name = st.session_state.selected_outlet
     st.markdown(f"<h2 style='text-align:center;'>🏪 {outlet_name} Dashboard</h2>", unsafe_allow_html=True)
 
-    # FORM TYPE
+    # SIDEBAR PAGE SELECTION
+    page_option = st.sidebar.radio("📌 Navigate", ["Outlet Form", "Customer Feedback"])
+    st.session_state.page = page_option
+
+    # =======================
+    # CUSTOMER FEEDBACK PAGE
+    # =======================
+    if st.session_state.page == "Customer Feedback":
+        st.markdown("### 📝 Customer Feedback")
+        name = st.text_input("Customer Name")
+        feedback = st.text_area("Feedback / Comments")
+        rating = st.slider("Rating", 1, 5, 3)
+
+        if st.button("📤 Submit Feedback"):
+            st.session_state.customer_feedback.append({
+                "Customer Name": name,
+                "Feedback": feedback,
+                "Rating": rating,
+                "Outlet": outlet_name,
+                "Date": datetime.now().strftime("%d-%b-%Y %H:%M")
+            })
+            st.success("✅ Feedback submitted successfully!")
+            st.experimental_rerun()
+
+        if st.session_state.customer_feedback:
+            st.markdown("### 🧾 Submitted Feedbacks")
+            df_feedback = pd.DataFrame(st.session_state.customer_feedback)
+            st.dataframe(df_feedback, use_container_width=True)
+
+        st.stop()  # Stops execution here, so Outlet Form inputs are not shown
+
+    # =======================
+    # OUTLET FORM PAGE
+    # =======================
     form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"])
     st.markdown("---")
 
