@@ -5,10 +5,10 @@ from datetime import datetime
 # ==========================================
 # PAGE CONFIG
 # ==========================================
-st.set_page_config(page_title="Outlet Form Dashboard", layout="wide")
+st.set_page_config(page_title="Outlet & Manager Dashboard", layout="wide")
 
 # ==========================================
-# LOAD ITEM DATA (for auto-fill)
+# LOAD ITEM DATA
 # ==========================================
 @st.cache_data
 def load_item_data():
@@ -27,10 +27,13 @@ outlets = [
     "Jais", "Sabah", "Sahat", "Shams salem", "Shams Liwan", "Superstore",
     "Tay Tay", "Safa oudmehta", "Port saeed"
 ]
-password = "123123"
 
-# Initialize session state variables
-for key in ["logged_in", "selected_outlet", "submitted_items", "barcode_input", "qty_input", "expiry_input", "remarks_input"]:
+managers = ["Manager 1", "Manager 2", "Manager 3"]
+outlet_password = "123123"
+manager_password = "1234512345"
+
+# Initialize session state
+for key in ["logged_in", "role", "selected_outlet", "submitted_items", "barcode_input", "qty_input", "expiry_input", "remarks_input"]:
     if key not in st.session_state:
         if key == "submitted_items":
             st.session_state[key] = []
@@ -45,31 +48,43 @@ for key in ["logged_in", "selected_outlet", "submitted_items", "barcode_input", 
 # LOGIN PAGE
 # ==========================================
 if not st.session_state.logged_in:
-    st.title("🔐 Outlet Login")
-    username = st.text_input("Username", placeholder="Enter username")
-    outlet = st.selectbox("Select your outlet", outlets)
-    pwd = st.text_input("Password", type="password")
+    st.title("🔐 Login Portal")
 
-    if st.button("Login"):
-        if username == "almadina" and pwd == password:
-            st.session_state.logged_in = True
-            st.session_state.selected_outlet = outlet
-            st.experimental_rerun()
-        else:
-            st.error("❌ Invalid username or password")
+    role = st.radio("Select Role", ["Outlet", "Manager"])
+
+    if role == "Outlet":
+        username = st.text_input("Username", placeholder="Enter username")
+        outlet = st.selectbox("Select your outlet", outlets)
+        pwd = st.text_input("Password", type="password")
+        if st.button("Login"):
+            if username == "almadina" and pwd == outlet_password:
+                st.session_state.logged_in = True
+                st.session_state.role = "Outlet"
+                st.session_state.selected_outlet = outlet
+                st.experimental_rerun()
+            else:
+                st.error("❌ Invalid outlet credentials")
+
+    else:  # Manager login
+        manager = st.selectbox("Select Manager", managers)
+        pwd = st.text_input("Password", type="password")
+        if st.button("Login"):
+            if pwd == manager_password:
+                st.session_state.logged_in = True
+                st.session_state.role = "Manager"
+                st.session_state.selected_outlet = manager
+                st.experimental_rerun()
+            else:
+                st.error("❌ Invalid manager password")
 
 # ==========================================
-# MAIN DASHBOARD
+# OUTLET DASHBOARD
 # ==========================================
-else:
+elif st.session_state.role == "Outlet":
     outlet_name = st.session_state.selected_outlet
     st.markdown(f"<h2 style='text-align:center;'>🏪 {outlet_name} Dashboard</h2>", unsafe_allow_html=True)
 
-    # FORM TYPE SELECTION
-    form_type = st.sidebar.radio(
-        "📋 Select Form Type",
-        ["Expiry", "Damages", "Near Expiry"]
-    )
+    form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"])
     st.markdown("---")
 
     # ==============================
@@ -83,7 +98,6 @@ else:
         qty = st.number_input("Qty [PCS]", min_value=1, value=st.session_state.qty_input)
         st.session_state.qty_input = qty
     with col3:
-        # Show expiry only for Expiry and Near Expiry
         if form_type != "Damages":
             expiry = st.date_input("Expiry Date", st.session_state.expiry_input)
             st.session_state.expiry_input = expiry
@@ -91,10 +105,7 @@ else:
             expiry = None
 
     # AUTO-FILL BASED ON BARCODE
-    item_name = ""
-    cost = 0.0
-    selling = 0.0
-    supplier = ""
+    item_name, cost, selling, supplier = "", 0.0, 0.0, ""
     if barcode:
         match = item_data[item_data["Item Bar Code"].astype(str) == str(barcode)]
         if not match.empty:
@@ -119,9 +130,7 @@ else:
     remarks = st.text_area("Remarks [if any]", value=st.session_state.remarks_input)
     st.session_state.remarks_input = remarks
 
-    # ==============================
     # ADD TO LIST BUTTON
-    # ==============================
     if st.button("➕ Add to List"):
         if barcode and item_name:
             st.session_state.submitted_items.append({
@@ -139,7 +148,7 @@ else:
                 "Outlet": outlet_name
             })
             st.success("✅ Added to list successfully!")
-            # CLEAR FORM INPUTS
+            # CLEAR FORM
             st.session_state.barcode_input = ""
             st.session_state.qty_input = 1
             st.session_state.expiry_input = datetime.now()
@@ -147,30 +156,97 @@ else:
         else:
             st.warning("⚠️ Fill barcode and item before adding.")
 
-  # ==============================
-# DISPLAY SUBMITTED ITEMS
-# ==============================
-if st.session_state.submitted_items:
-    st.markdown("### 🧾 Items Added")
-    df = pd.DataFrame(st.session_state.submitted_items)
-    st.dataframe(df, use_container_width=True)
+    # ==============================
+    # DISPLAY SUBMITTED ITEMS
+    # ==============================
+    if st.session_state.submitted_items:
+        st.markdown("### 🧾 Items Added")
+        df = pd.DataFrame(st.session_state.submitted_items)
+        st.dataframe(df, use_container_width=True)
 
-    col_submit, col_delete = st.columns([1, 1])
+        col_submit, col_delete = st.columns([1, 1])
+        with col_submit:
+            if st.button("📤 Submit All"):
+                st.success("✅ All data submitted (demo)")
+                st.session_state.submitted_items = []
 
-    with col_submit:
-        if st.button("📤 Submit All"):
-            # Submit logic here (e.g., Google Sheets)
-            st.success("✅ All data submitted (demo)")
-            st.session_state.submitted_items = []
+        with col_delete:
+            to_delete = st.selectbox(
+                "Select Item to Delete",
+                options=[f"{i+1}. {item['Item Name']}" for i, item in enumerate(st.session_state.submitted_items)]
+            )
+            if st.button("❌ Delete Selected"):
+                index = int(to_delete.split(".")[0]) - 1
+                st.session_state.submitted_items.pop(index)
+                st.success("✅ Item removed")
+                st.experimental_rerun()
 
-    with col_delete:
-        # Select row to delete
-        to_delete = st.selectbox(
-            "Select Item to Delete",
-            options=[f"{i+1}. {item['Item Name']}" for i, item in enumerate(st.session_state.submitted_items)]
-        )
-        if st.button("❌ Delete Selected"):
-            index = int(to_delete.split(".")[0]) - 1
-            st.session_state.submitted_items.pop(index)
-            st.success("✅ Item removed")
-            st.experimental_rerun()
+# ==========================================
+# MANAGER DASHBOARD
+# ==========================================
+elif st.session_state.role == "Manager":
+    st.markdown(f"<h2 style='text-align:center;'>🧾 OUTLET VISIT CHECKLIST - {st.session_state.selected_outlet}</h2>", unsafe_allow_html=True)
+    st.markdown("---")
+
+    # Basic Info
+    col1, col2 = st.columns(2)
+    with col1:
+        outlet_name = st.text_input("Outlet Name")
+        buyer_name = st.text_input("Buyer Name")
+    with col2:
+        visit_date = st.date_input("Date", datetime.now())
+        managers_present = st.text_input("Managers Present")
+
+    st.markdown("### ✅ Checklist")
+    checklist_items = [
+        "Store Entrance area clean and tidy",
+        "Shopping baskets/trolleys available & in good condition",
+        "Store floors clean and dry",
+        "Shelves dust-free and organized",
+        "No stock or blockages in aisles",
+        "All staff in proper uniform and grooming",
+        "Staff awareness of promotions/products",
+        "Promotional tags and displays correctly placed",
+        "Promo stock available and refilled timely",
+        "Shelve tags properly placed",
+        "Stock neatly arranged (facing and stacking)",
+        "Expired items removed from shelves",
+        "Check for overstocked or understocked products",
+        "Verify stock levels of fast-moving items",
+        "Identify slow-moving or obsolete items",
+        "Review last purchase orders and delivery timelines",
+        "Note any frequent product requests not currently stocked",
+        "Check for counterfeit or unapproved brands",
+        "Note competitor products or promotions seen in the area",
+        "Quality of fruits and vegetables (fresh, no damage)",
+        "Check for unauthorized purchases or wastage",
+        "Validate consistency in product standards across outlets",
+        "Gather feedback from outlet managers on supply issues",
+        "Review communication between purchasing and outlet staff",
+        "Review expiry management and disposal records",
+        "Loyalty cards/offers being promoted by staff",
+        "Discuss vendor performance concerns",
+        "LC products out of stock",
+        "LC products not dipslayed properly"
+    ]
+
+    checklist_data = []
+    for item in checklist_items:
+        colA, colB, colC = st.columns([3, 1, 2])
+        with colA:
+            st.text(item)
+        with colB:
+            status = st.selectbox("", ["OK", "Not OK"], key=item)
+        with colC:
+            notes = st.text_input("Notes/Observations", key=item+"_note")
+        checklist_data.append({
+            "Item": item,
+            "Status": status,
+            "Notes": notes
+        })
+
+    st.markdown("### 📝 Additional Comments")
+    comments = st.text_area("Additional Comments or Observations")
+
+    if st.button("📤 Submit Report"):
+        st.success("✅ Manager Visit Checklist submitted successfully (demo)")
