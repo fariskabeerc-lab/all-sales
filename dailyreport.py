@@ -17,11 +17,20 @@ def load_item_data():
         df = pd.read_excel(file_path)
         # Ensure column names are clean
         df.columns = df.columns.str.strip()
+        
+        # Ensure 'Selling' is available as 'Selling Price' for submission logic, even if not used in lookup
+        if 'Selling' in df.columns and 'Selling Price' not in df.columns:
+             df.rename(columns={'Selling': 'Selling Price'}, inplace=True)
+             
+        # Check only critical columns needed for the app to run
+        required_cols = ["Item Bar Code", "Item Name", "LP Supplier"] 
+        for col in required_cols:
+            if col not in df.columns:
+                st.error(f"⚠️ Missing critical column: '{col}' in alllist.xlsx. Please check the file.")
+                return pd.DataFrame()
         return df
     except FileNotFoundError:
-        # Display the actual error if the file isn't found
         st.error(f"⚠️ Data file not found: {file_path}. Please ensure the file is in the application directory.")
-        # Return an empty DataFrame so the application doesn't crash
         return pd.DataFrame()
 
 item_data = load_item_data()
@@ -37,40 +46,38 @@ outlets = [
 password = "123123"
 
 # Initialize session state variables
-# Updated keys for cleaner form handling
 for key in ["logged_in", "selected_outlet", "submitted_items",
+             # Main form inputs (values persist until submitted/cleared)
              "barcode_value", "qty_input", "expiry_input", "remarks_input",
              "item_name_input", "supplier_input", 
              "cost_input", "selling_input",
-             "submitted_feedback"]:
+             # Lookup state (temporary data from filter)
+             "lookup_data", "submitted_feedback"]:
     if key not in st.session_state:
         if key in ["submitted_items", "submitted_feedback"]:
             st.session_state[key] = []
+        elif key == "lookup_data":
+            st.session_state[key] = pd.DataFrame()
         elif key == "qty_input":
             st.session_state[key] = 1
         elif key == "expiry_input":
             st.session_state[key] = datetime.now().date()
         elif key in ["cost_input", "selling_input"]:
-            st.session_state[key] = "0.0"
+            st.session_state[key] = "0.0" # Ensure cost/selling starts at 0.0
         else:
             st.session_state[key] = ""
 
 # ------------------------------------------------------------------
 # --- Lookup Logic Function (Callback for Barcode Form) ---
-# FIX: This function now correctly updates all session state values for auto-fill.
+# FIX: Only fetches Item Name and Supplier for the lookup table.
 # ------------------------------------------------------------------
 def lookup_item_and_update_state():
-    # Retrieve the value from the submitted form's key (barcode_lookup_form)
+    # Retrieve the value from the submitted form's key
     barcode = st.session_state.lookup_barcode_input
     
-    # Update the general state variable that the main form widgets use for their 'value'
+    # Reset lookup data
+    st.session_state.lookup_data = pd.DataFrame()
     st.session_state.barcode_value = barcode 
-    
-    # Reset all form fields in session state before new lookup
-    st.session_state.item_name_input = ""
-    st.session_state.supplier_input = ""
-    st.session_state.cost_input = "0.0"
-    st.session_state.selling_input = "0.0"
     
     if not barcode:
         st.toast("⚠️ Barcode cleared.", icon="❌")
@@ -82,27 +89,40 @@ def lookup_item_and_update_state():
         match = item_data[item_data["Item Bar Code"].astype(str).str.strip() == str(barcode).strip()]
         
         if not match.empty:
-            # Update generic session state keys which the main form uses for 'value'
-            st.session_state.item_name_input = str(match.iloc[0]["Item Name"])
-            st.session_state.supplier_input = str(match.iloc[0]["LP Supplier"])
-            
-            # Safely set Cost and Selling Price (now editable in the main form)
-            cost_val = match.iloc[0].get('Cost', '0.0')
-            selling_val = match.iloc[0].get('Selling Price', '0.0')
-            
-            st.session_state.cost_input = str(cost_val)
-            st.session_state.selling_input = str(selling_val)
-            
-            st.toast("✅ Item details loaded.", icon="🔍")
+            # Prepare data for display table - ONLY Item Name and LP Supplier
+            df_display = match[["Item Name", "LP Supplier"]].copy()
+            df_display.columns = ["Item Name", "Supplier"]
+            df_display = df_display.reset_index(drop=True)
+            st.session_state.lookup_data = df_display
+            st.toast("✅ Item found. Review and Load details.", icon="🔍")
         else:
-            st.toast("⚠️ Barcode not found. Type name and details manually.", icon="⚠️")
+            st.toast("⚠️ Barcode not found. Details cleared.", icon="⚠️")
     else:
-         st.toast("⚠️ Item data is empty. Type name and details manually.", icon="⚠️")
+         st.toast("⚠️ Item data file is empty.", icon="⚠️")
     
-    # CRITICAL: Force a rerun here so the main form reloads with the new state values
-    # for 'Item Name' and 'Supplier Name' without submitting the item.
+    # CRITICAL: Force a rerun here so the display updates
     st.rerun() 
 # ------------------------------------------------------------------
+
+# ------------------------------------------------------------------
+# --- Load Item Details to Main Form Function ---
+# FIX: Only transfers Item Name and Supplier Name. Cost/Selling remain "0.0".
+# ------------------------------------------------------------------
+def load_details_to_form(lookup_df):
+    if not lookup_df.empty:
+        # Get the first matching row
+        row = lookup_df.iloc[0]
+        st.session_state.item_name_input = str(row["Item Name"])
+        st.session_state.supplier_input = str(row["Supplier"])
+        
+        # NOTE: Cost and Selling Price are NOT updated here. They keep their default/current values ("0.0").
+        
+        # Clear the lookup table display
+        st.session_state.lookup_data = pd.DataFrame()
+        st.toast("➡️ Name and Supplier loaded. Please enter prices.", icon="📝")
+    else:
+        st.toast("⚠️ No details to load.", icon="❌")
+    st.rerun() # Rerun to update the main form inputs
 
 # -------------------------------------------------
 # --- Main Form Submission Handler (Handles Clearing) ---
@@ -193,68 +213,82 @@ else:
         form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"])
         st.markdown("---")
 
-        # --- Dedicated Lookup Form (for instant barcode lookup on Enter) ---
-        # FIX: This form's only purpose is to trigger the lookup/rerun, 
-        # isolating the Enter key press from the main item submission form.
+        # --- 1. Dedicated Lookup Form (Enter key only triggers search/filter) ---
         with st.form("barcode_lookup_form", clear_on_submit=False):
             
             col_bar, col_btn = st.columns([5, 1])
             
             with col_bar:
-                # Barcode input
                 st.text_input(
-                    "Barcode",
+                    "Barcode Lookup",
                     key="lookup_barcode_input", 
-                    placeholder="Enter or scan barcode and press Enter to look up details",
+                    placeholder="Enter or scan barcode and press Enter to search details",
                     value=st.session_state.barcode_value
                 )
             
             with col_btn:
-                # This button captures the Enter key press from the barcode input
                 st.markdown("<div style='height: 33px;'></div>", unsafe_allow_html=True) # Spacer
                 st.form_submit_button(
-                    "🔍", 
-                    on_click=lookup_item_and_update_state, # Callback runs and forces rerun
+                    "🔍 Search", 
+                    on_click=lookup_item_and_update_state, 
                     help="Click or press Enter in the barcode field to look up item.",
                     type="secondary",
                     use_container_width=True
                 )
 
-        st.markdown("---")
-        # -----------------------------------------------------------
+        # --- 2. Item Details Display Panel (The 'Filter' result) ---
+        if not st.session_state.lookup_data.empty:
+            st.markdown("### 🔍 Item Details Lookup")
+            lookup_df = st.session_state.lookup_data
+            
+            col_table, col_button = st.columns([5, 1])
+            
+            with col_table:
+                # Display the table with only Name and Supplier
+                st.dataframe(lookup_df, use_container_width=True, hide_index=True)
 
-        # --- Start of the Item Entry Form (Only submits on button click) ---
+            with col_button:
+                # Button to transfer data to the main form
+                st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True) # Spacer for alignment
+                st.button(
+                    "➡️ Load Details to Form", 
+                    on_click=load_details_to_form, 
+                    args=(lookup_df,), 
+                    type="primary",
+                    use_container_width=True
+                )
+                
+            st.markdown("---") # Separator after lookup panel
+
+        # --- 3. Start of the Main Item Entry Form ---
         with st.form("item_entry_form", clear_on_submit=False): 
-
-            # Form field variables (local to the form context)
+            
+            # --- Row 1: Qty and Expiry ---
             col1, col2 = st.columns(2)
             with col1:
-                # Value initialized from generic state variable
                 qty = st.number_input("Qty [PCS]", min_value=1, value=st.session_state.qty_input, key="form_qty_input")
             with col2:
                 if form_type != "Damages":
-                    # Value initialized from generic state variable
                     expiry = st.date_input("Expiry Date", st.session_state.expiry_input, key="form_expiry_input")
                 else:
                     expiry = None
 
+            # --- Row 2: Item Name, Cost, Selling, Supplier ---
             col4, col5, col6, col7 = st.columns(4)
             with col4:
-                # Value initialized from generic state variable (updated by lookup)
+                # Value initialized from session state (updated by lookup -> load button)
                 item_name = st.text_input("Item Name", value=st.session_state.item_name_input, key="form_item_name_input")
             with col5:
-                # Value initialized from generic state variable
-                # FIX: Cost is now editable (not disabled)
+                # FIX: Cost is editable and defaults to "0.0"
                 cost_str = st.text_input("Cost", value=st.session_state.cost_input, key="form_cost_input")
             with col6:
-                # Value initialized from generic state variable
-                # FIX: Selling is now editable (not disabled)
+                # FIX: Selling is editable and defaults to "0.0"
                 selling_str = st.text_input("Selling Price", value=st.session_state.selling_input, key="form_selling_input")
             with col7:
-                # Value initialized from generic state variable (updated by lookup)
+                # Value initialized from session state (updated by lookup -> load button)
                 supplier = st.text_input("Supplier Name", value=st.session_state.supplier_input, key="form_supplier_input")
 
-            # Calculate and display GP% (based on current form values, not session state)
+            # Calculate and display GP%
             try:
                 temp_cost = float(cost_str)
                 temp_selling = float(selling_str)
@@ -265,10 +299,10 @@ else:
             gp = ((temp_selling - temp_cost) / temp_cost * 100) if temp_cost else 0
             st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
 
-            # Value initialized from generic state variable
+            # --- Remarks and Submit Button ---
             remarks = st.text_area("Remarks [if any]", value=st.session_state.remarks_input, key="form_remarks_input")
 
-            # Form submission button 
+            # Form submission button (only this button adds the item)
             submitted_item = st.form_submit_button(
                 "➕ Add to List", 
                 type="primary",
@@ -279,10 +313,9 @@ else:
         # --- Handle Main Form Submission ONLY on Button Click ---
         # --------------------------------------------------------
         if submitted_item:
-            # We pass the values from the internal form state keys.
+            # We use the barcode from the *lookup form state* since the lookup form holds the master barcode value
             success = process_item_entry(
-                # Use the value that was successfully looked up or manually entered
-                st.session_state.barcode_value, 
+                st.session_state.barcode_value, # The barcode used for lookup
                 st.session_state.form_item_name_input, 
                 st.session_state.form_qty_input, 
                 st.session_state.form_cost_input, 
