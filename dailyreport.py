@@ -48,7 +48,7 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
              "item_name_input", "supplier_input", 
              "cost_input", "selling_input",
              # Lookup state (temporary data from filter)
-             "lookup_data", "submitted_feedback", "barcode_found"]: # Added barcode_found flag
+             "lookup_data", "submitted_feedback", "barcode_found"]: 
     if key not in st.session_state:
         if key in ["submitted_items", "submitted_feedback"]:
             st.session_state[key] = []
@@ -61,9 +61,21 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
         elif key in ["cost_input", "selling_input"]:
             st.session_state[key] = "0.0" 
         elif key == "barcode_found":
-            st.session_state[key] = False # Initialize the flag
+            st.session_state[key] = False 
         else:
             st.session_state[key] = ""
+
+# ------------------------------------------------------------------
+# --- Helper functions to synchronize manual inputs ---
+def update_item_name_state():
+    # This is called when the manual item name input changes
+    st.session_state.item_name_input = st.session_state.temp_item_name_manual
+
+def update_supplier_state():
+    # This is called when the manual supplier input changes
+    st.session_state.supplier_input = st.session_state.temp_supplier_manual
+# ------------------------------------------------------------------
+
 
 # ------------------------------------------------------------------
 # --- Lookup Logic Function (Callback for Barcode Form) ---
@@ -102,7 +114,8 @@ def lookup_item_and_update_state():
             
             st.toast("✅ Item found. Details loaded.", icon="🔍")
         else:
-            st.session_state.barcode_found = False # Barcode not found
+            # Barcode not found - ensures item_name_input and supplier_input remain empty
+            st.session_state.barcode_found = False 
             st.toast("⚠️ Barcode not found. Please enter item name and supplier manually.", icon="⚠️")
     else:
          st.toast("⚠️ Item data file is empty.", icon="⚠️")
@@ -115,9 +128,12 @@ def lookup_item_and_update_state():
 # -------------------------------------------------
 def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, supplier, remarks, form_type, outlet_name):
     
-    # Validation and conversion
-    if not barcode.strip() or not item_name.strip():
-        st.toast("⚠️ Barcode and Item Name are required before adding.", icon="❌")
+    # Validation
+    if not barcode.strip():
+        st.toast("⚠️ Barcode is required before adding.", icon="❌")
+        return False
+    if not item_name.strip():
+        st.toast("⚠️ Item Name is required before adding.", icon="❌")
         return False
 
     try:
@@ -229,15 +245,26 @@ else:
             st.dataframe(st.session_state.lookup_data, use_container_width=True, hide_index=True)
         
         # --- 2b. Manual Entry Fallback ---
-        # FIX: Show manual entry fields ONLY if a search was done and the barcode was NOT found
+        # Show manual entry fields ONLY if a search was done and the barcode was NOT found
         if st.session_state.barcode_value.strip() and not st.session_state.barcode_found:
              st.markdown("### ⚠️ Manual Item Entry (Barcode Not Found)")
              col_manual_name, col_manual_supplier = st.columns(2)
              with col_manual_name:
-                 # The manual input updates the same session state variables the main form uses
-                 st.text_input("Item Name (Manual)", value=st.session_state.item_name_input, key="manual_item_name_input")
+                 # FIX: Use temporary key and on_change to update item_name_input
+                 st.text_input(
+                     "Item Name (Manual)", 
+                     value=st.session_state.item_name_input, 
+                     key="temp_item_name_manual", 
+                     on_change=update_item_name_state
+                 )
              with col_manual_supplier:
-                 st.text_input("Supplier Name (Manual)", value=st.session_state.supplier_input, key="manual_supplier_input")
+                 # FIX: Use temporary key and on_change to update supplier_input
+                 st.text_input(
+                     "Supplier Name (Manual)", 
+                     value=st.session_state.supplier_input, 
+                     key="temp_supplier_manual", 
+                     on_change=update_supplier_state
+                 )
 
         # Separator only if a search has happened
         if st.session_state.barcode_value.strip():
@@ -289,27 +316,20 @@ else:
         # --- Handle Main Form Submission ONLY on Button Click ---
         # --------------------------------------------------------
         if submitted_item:
-            # Determine the Item Name and Supplier based on whether the barcode was found or manually entered
-            # If the barcode was found, item_name_input and supplier_input hold the loaded values.
-            # If the barcode was NOT found, they hold the manually entered values (from keys 'manual_item_name_input'/'manual_supplier_input').
+            # Item Name and Supplier are pulled from the main item_name_input/supplier_input keys,
+            # which are updated either by the successful search or the manual input.
             
-            # Use the most recent session state values
             final_item_name = st.session_state.item_name_input
             final_supplier = st.session_state.supplier_input
 
-            # Crucial check: Ensure a barcode has been entered
-            if not st.session_state.barcode_value.strip():
-                 st.toast("❌ Please enter a Barcode before adding to the list.", icon="❌")
-                 st.rerun()
-
             success = process_item_entry(
-                st.session_state.barcode_value, 
-                final_item_name, 
+                st.session_state.barcode_value, # The current barcode value
+                final_item_name,               # Name from lookup or manual entry
                 st.session_state.form_qty_input, 
                 st.session_state.form_cost_input, 
                 st.session_state.form_selling_input, 
                 st.session_state.form_expiry_input if form_type != "Damages" else None, 
-                final_supplier, 
+                final_supplier,                # Supplier from lookup or manual entry
                 st.session_state.form_remarks_input,
                 form_type, 
                 outlet_name
