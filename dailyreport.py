@@ -12,7 +12,8 @@ st.set_page_config(page_title="Outlet & Feedback Dashboard", layout="wide")
 # ==========================================
 @st.cache_data
 def load_item_data():
-    file_path = "alllist.xlsx"
+    # NOTE: The actual file "alllist.xlsx" must be present in the directory 
+    file_path = "alllist.xlsx" 
     try:
         df = pd.read_excel(file_path)
         # Ensure column names are clean
@@ -63,11 +64,11 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
 # ------------------------------------------------------------------
 # --- Helper functions to synchronize manual inputs ---
 def update_item_name_state():
-    # Updates the main item_name_input state variable from the temp manual input
+    """Updates the main item_name_input state variable from the temp manual input."""
     st.session_state.item_name_input = st.session_state.temp_item_name_manual
 
 def update_supplier_state():
-    # Updates the main supplier_input state variable from the temp manual input
+    """Updates the main supplier_input state variable from the temp manual input."""
     st.session_state.supplier_input = st.session_state.temp_supplier_manual
 # ------------------------------------------------------------------
 
@@ -75,21 +76,22 @@ def update_supplier_state():
 # --- Lookup Logic Function (Callback for Barcode Form) ---
 # ------------------------------------------------------------------
 def lookup_item_and_update_state():
+    """Performs the barcode lookup and updates relevant session state variables."""
     barcode = st.session_state.lookup_barcode_input
     
-    # Reset lookup states
+    # Reset lookup and previous item states
     st.session_state.lookup_data = pd.DataFrame()
     st.session_state.barcode_value = barcode 
     st.session_state.item_name_input = ""
     st.session_state.supplier_input = ""
     st.session_state.barcode_found = False
+    
+    # Reset temporary keys for manual entry fields
     st.session_state.temp_item_name_manual = ""
     st.session_state.temp_supplier_manual = "" 
     
-    # Reset all fields *within the item entry form* via a full reset of the form's session keys 
-    # to avoid the state exception when using `clear_on_submit=True` on the next submit.
-    # NOTE: Since we are using clear_on_submit=True, we rely on the form clear 
-    # and only reset the non-form keys here.
+    # NOTE: Since the main entry form uses clear_on_submit=True, 
+    # we do not need to manually reset its internal widget state keys here.
 
     if not barcode:
         st.toast("⚠️ Barcode cleared.", icon="❌")
@@ -103,7 +105,12 @@ def lookup_item_and_update_state():
             st.session_state.barcode_found = True
             row = match.iloc[0]
             
-            # Transfer details to the main form state
+            # 1. Prepare data for display table
+            df_display = row[["Item Name", "LP Supplier"]].to_frame().T
+            df_display.columns = ["Item Name", "Supplier"]
+            st.session_state.lookup_data = df_display.reset_index(drop=True)
+            
+            # 2. Automatically transfer details to the main state variables
             st.session_state.item_name_input = str(row["Item Name"])
             st.session_state.supplier_input = str(row["LP Supplier"])
             
@@ -117,8 +124,7 @@ def lookup_item_and_update_state():
 # ------------------------------------------------------------------
 
 # -------------------------------------------------
-# --- Main Form Submission Handler (Handles Clearing) ---
-# FIX: Removed the entire manual reset logic.
+# --- Main Form Submission Handler ---
 # -------------------------------------------------
 def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, supplier, remarks, form_type, outlet_name):
     
@@ -157,11 +163,10 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
         "Outlet": outlet_name
     })
 
-    # --- CLEAR ONLY THE NON-FORM STATE VARIABLES ---
-    # The form inputs will be cleared by clear_on_submit=True on the rerun.
+    # --- CLEAR ONLY THE NON-FORM/NON-ITEM STATE VARIABLES ---
+    # FIX: Only clear the barcode/lookup fields to prepare for the next item.
+    # Keep item_name_input and supplier_input populated for potential repeated entry.
     st.session_state.barcode_value = ""          
-    st.session_state.item_name_input = ""        
-    st.session_state.supplier_input = ""         
     st.session_state.lookup_data = pd.DataFrame() 
     st.session_state.barcode_found = False
     
@@ -212,6 +217,7 @@ else:
             col_bar, col_btn = st.columns([5, 1])
             
             with col_bar:
+                # Key is used to get the value in the callback
                 st.text_input(
                     "Barcode Lookup",
                     key="lookup_barcode_input", 
@@ -240,6 +246,7 @@ else:
              st.markdown("### ⚠️ Manual Item Entry (Barcode Not Found)")
              col_manual_name, col_manual_supplier = st.columns(2)
              with col_manual_name:
+                 # Key is used to store and update the temporary value. on_change updates the main state.
                  st.text_input(
                      "Item Name (Manual)", 
                      value=st.session_state.item_name_input, 
@@ -247,6 +254,7 @@ else:
                      on_change=update_item_name_state
                  )
              with col_manual_supplier:
+                 # Key is used to store and update the temporary value. on_change updates the main state.
                  st.text_input(
                      "Supplier Name (Manual)", 
                      value=st.session_state.supplier_input, 
@@ -260,14 +268,12 @@ else:
 
 
         # --- 3. Start of the Main Item Entry Form ---
-        # FIX: Set clear_on_submit=True to clear the fields automatically
+        # NOTE: clear_on_submit=True resets the fields inside the form
         with st.form("item_entry_form", clear_on_submit=True): 
             
             # --- Row 1: Qty and Expiry ---
             col1, col2 = st.columns(2)
             with col1:
-                # Widgets in a clear_on_submit=True form do not need custom keys unless their value 
-                # needs to be accessed/controlled outside the form's submit block.
                 qty = st.number_input("Qty [PCS]", min_value=1, value=1)
             with col2:
                 if form_type != "Damages":
@@ -306,30 +312,29 @@ else:
         # --------------------------------------------------------
         # --- Handle Main Form Submission ONLY on Button Click ---
         # --------------------------------------------------------
-        # When clear_on_submit=True, the state values are available in the submit block.
         if submitted_item:
             
+            # Get the current, persistent item name and supplier from session state
             final_item_name = st.session_state.item_name_input
             final_supplier = st.session_state.supplier_input
 
             if not st.session_state.barcode_value.strip():
                  st.toast("❌ Please enter a Barcode before adding to the list.", icon="❌")
-                 # A manual rerun is required here since clear_on_submit already triggered one.
                  st.rerun() 
 
             success = process_item_entry(
                 st.session_state.barcode_value, 
                 final_item_name,               
-                qty,        # Passed directly from the form widget
-                cost_str,   # Passed directly from the form widget
-                selling_str,# Passed directly from the form widget
-                expiry,     # Passed directly from the form widget
+                qty,        
+                cost_str,   
+                selling_str,
+                expiry,     
                 final_supplier,                
-                remarks,    # Passed directly from the form widget
+                remarks,    
                 form_type, 
                 outlet_name
             )
-            # Success logic is inside process_item_entry, which triggers a final rerun.
+            # Rerunning here finalizes the item list update and clears the item entry form
             if success:
                  st.rerun()
 
@@ -344,14 +349,17 @@ else:
             with col_submit:
                 if st.button("📤 Submit All", type="primary"):
                     st.success(f"✅ All {len(st.session_state.submitted_items)} items submitted for {outlet_name} (demo). Resetting.")
-                    # Clear state upon final submission (clears form on rerun)
+                    # Clear ALL state upon final submission 
                     st.session_state.submitted_items = []
+                    
+                    # FINAL RESET OF ITEM LOOKUP DATA
                     st.session_state.barcode_value = ""
                     st.session_state.item_name_input = ""
                     st.session_state.supplier_input = ""
                     st.session_state.barcode_found = False
                     st.session_state.temp_item_name_manual = "" 
                     st.session_state.temp_supplier_manual = "" 
+                    st.session_state.lookup_data = pd.DataFrame() 
                     st.rerun() 
 
             with col_delete:
@@ -360,6 +368,7 @@ else:
                     to_delete = st.selectbox("Select Item to Delete", ["Select item to remove..."] + options)
                     if to_delete != "Select item to remove...":
                         if st.button("❌ Delete Selected", type="secondary"):
+                            # The index is the position in the list minus 1 for the "Select..." option
                             index = options.index(to_delete) 
                             st.session_state.submitted_items.pop(index)
                             st.success("✅ Item removed")
