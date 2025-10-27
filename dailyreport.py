@@ -164,7 +164,6 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
     })
 
     # --- CLEAR ONLY THE NON-FORM/NON-ITEM STATE VARIABLES ---
-    # FIX: Only clear the barcode/lookup fields to prepare for the next item.
     # Keep item_name_input and supplier_input populated for potential repeated entry.
     st.session_state.barcode_value = ""          
     st.session_state.lookup_data = pd.DataFrame() 
@@ -374,8 +373,9 @@ else:
                             st.success("✅ Item removed")
                             st.rerun()
 
+    
     # ==========================================
-    # CUSTOMER FEEDBACK PAGE (UNCHANGED)
+    # CUSTOMER FEEDBACK PAGE (MODIFIED: EMAIL REMOVED)
     # ==========================================
     else:
         outlet_name = st.session_state.selected_outlet
@@ -385,7 +385,7 @@ else:
 
         with st.form("feedback_form", clear_on_submit=True):
             name = st.text_input("Customer Name")
-            email = st.text_input("Email (Optional)") 
+            # --- EMAIL OPTION REMOVED HERE ---
             rating = st.slider("Rate Our Outlet", 1, 5, 5)
             feedback = st.text_area("Your Feedback (Required)")
             submitted = st.form_submit_button("📤 Submit Feedback")
@@ -394,7 +394,7 @@ else:
             if name.strip() and feedback.strip():
                 st.session_state.submitted_feedback.append({
                     "Customer Name": name,
-                    "Email": email.strip(),
+                    "Email": "N/A", # Set to N/A since the field is removed
                     "Rating": f"{rating} / 5",
                     "Outlet": outlet_name,
                     "Feedback": feedback,
@@ -402,7 +402,7 @@ else:
                 })
                 st.success("✅ Feedback submitted successfully! The form has been cleared.")
             else:
-                st.error("⚠️ Please fill Customer Name and Feedback before submitting.")
+                st.error("⚠️ Please fill **Customer Name** and **Feedback** before submitting.")
 
         if st.session_state.submitted_feedback:
             st.markdown("### 🗂 Recent Customer Feedback")
