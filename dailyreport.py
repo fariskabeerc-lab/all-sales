@@ -47,20 +47,25 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
              "barcode_value", "qty_input", "expiry_input", "remarks_input",
              "item_name_input", "supplier_input", 
              "cost_input", "selling_input",
-             # Manual Entry temporary keys (must exist for on_change)
+             # Temporary keys for manual entry fields (value source for form fields)
              "temp_item_name_manual", "temp_supplier_manual",
              # Lookup state (temporary data from filter)
-             "lookup_data", "submitted_feedback", "barcode_found"]: 
+             "lookup_data", "submitted_feedback", "barcode_found",
+             # KEYS FOR THE WIDGETS THEMSELVES (must be reset separately)
+             "form_qty_input", "form_expiry_input", "form_cost_input", 
+             "form_selling_input", "form_remarks_input"]: 
+    
     if key not in st.session_state:
         if key in ["submitted_items", "submitted_feedback"]:
             st.session_state[key] = []
         elif key == "lookup_data":
             st.session_state[key] = pd.DataFrame()
-        elif key == "qty_input":
+        # Initialize default values for the control keys
+        elif key in ["qty_input", "form_qty_input"]:
             st.session_state[key] = 1
-        elif key == "expiry_input":
+        elif key in ["expiry_input", "form_expiry_input"]:
             st.session_state[key] = datetime.now().date()
-        elif key in ["cost_input", "selling_input"]:
+        elif key in ["cost_input", "selling_input", "form_cost_input", "form_selling_input"]:
             st.session_state[key] = "0.0" 
         elif key == "barcode_found":
             st.session_state[key] = False 
@@ -70,13 +75,11 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
 # ------------------------------------------------------------------
 # --- Helper functions to synchronize manual inputs ---
 def update_item_name_state():
-    # This is called when the manual item name input changes
-    # It updates the main item_name_input state variable
+    # Updates the main item_name_input state variable from the temp manual input
     st.session_state.item_name_input = st.session_state.temp_item_name_manual
 
 def update_supplier_state():
-    # This is called when the manual supplier input changes
-    # It updates the main supplier_input state variable
+    # Updates the main supplier_input state variable from the temp manual input
     st.session_state.supplier_input = st.session_state.temp_supplier_manual
 # ------------------------------------------------------------------
 
@@ -94,9 +97,13 @@ def lookup_item_and_update_state():
     st.session_state.supplier_input = ""
     st.session_state.barcode_found = False
     
-    # NOTE: We DO NOT reset temp_item_name_manual/temp_supplier_manual here, 
-    # we just let the main inputs control them via their 'value'.
-
+    # Also reset the temporary keys for manual input to ensure they are empty if a new search is started
+    st.session_state.temp_item_name_manual = ""
+    st.session_state.temp_supplier_manual = "" 
+    
+    # Reset all form fields to their defaults when a new search begins
+    reset_form_fields_to_defaults()
+    
     if not barcode:
         st.toast("⚠️ Barcode cleared.", icon="❌")
         st.rerun()
@@ -120,7 +127,7 @@ def lookup_item_and_update_state():
             
             st.toast("✅ Item found. Details loaded.", icon="🔍")
         else:
-            # Barcode not found - ensures item_name_input and supplier_input remain empty for manual entry
+            # Barcode not found 
             st.session_state.barcode_found = False 
             st.toast("⚠️ Barcode not found. Please enter item name and supplier manually.", icon="⚠️")
     else:
@@ -129,9 +136,26 @@ def lookup_item_and_update_state():
     st.rerun() 
 # ------------------------------------------------------------------
 
+def reset_form_fields_to_defaults():
+    """Resets all widget keys and their backing state variables to default values."""
+    # Reset form field keys (must match the 'key' in st.form)
+    st.session_state.form_qty_input = 1
+    st.session_state.form_expiry_input = datetime.now().date()
+    st.session_state.form_cost_input = "0.0"
+    st.session_state.form_selling_input = "0.0"
+    st.session_state.form_remarks_input = ""
+    
+    # Also reset their associated non-widget state (for consistency)
+    st.session_state.qty_input = 1
+    st.session_state.expiry_input = datetime.now().date()
+    st.session_state.cost_input = "0.0"
+    st.session_state.selling_input = "0.0"
+    st.session_state.remarks_input = ""
+
+
 # -------------------------------------------------
 # --- Main Form Submission Handler (Handles Clearing) ---
-# FIX: Removed the conflicting reset of temporary keys.
+# FIX: Calls reset_form_fields_to_defaults()
 # -------------------------------------------------
 def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, supplier, remarks, form_type, outlet_name):
     
@@ -170,17 +194,17 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
         "Outlet": outlet_name
     })
 
-    # --- CLEAR ALL COLUMNS SAFELY (THIS TRIGGERS RERUN AND CLEARS FORM) ---
+    # --- CLEAR ALL STATE VARIABLES ---
     st.session_state.barcode_value = ""          
     st.session_state.item_name_input = ""        
     st.session_state.supplier_input = ""         
-    st.session_state.cost_input = "0.0"          
-    st.session_state.selling_input = "0.0"       
-    st.session_state.qty_input = 1               
-    st.session_state.remarks_input = ""          
-    st.session_state.expiry_input = datetime.now().date()
     st.session_state.lookup_data = pd.DataFrame() 
     st.session_state.barcode_found = False
+    st.session_state.temp_item_name_manual = "" 
+    st.session_state.temp_supplier_manual = ""
+    
+    # CRITICAL FIX: Reset the form fields themselves
+    reset_form_fields_to_defaults()
     
     st.toast("✅ Added to list successfully! The form has been cleared.", icon="➕")
     return True
@@ -257,19 +281,15 @@ else:
              st.markdown("### ⚠️ Manual Item Entry (Barcode Not Found)")
              col_manual_name, col_manual_supplier = st.columns(2)
              with col_manual_name:
-                 # Use temporary key and on_change to update item_name_input
                  st.text_input(
                      "Item Name (Manual)", 
-                     # Set initial value from the main state, which should be empty on 'not found'
                      value=st.session_state.item_name_input, 
                      key="temp_item_name_manual", 
                      on_change=update_item_name_state
                  )
              with col_manual_supplier:
-                 # Use temporary key and on_change to update supplier_input
                  st.text_input(
                      "Supplier Name (Manual)", 
-                     # Set initial value from the main state, which should be empty on 'not found'
                      value=st.session_state.supplier_input, 
                      key="temp_supplier_manual", 
                      on_change=update_supplier_state
@@ -286,19 +306,23 @@ else:
             # --- Row 1: Qty and Expiry ---
             col1, col2 = st.columns(2)
             with col1:
-                qty = st.number_input("Qty [PCS]", min_value=1, value=st.session_state.qty_input, key="form_qty_input")
+                # Value uses the specific widget key
+                qty = st.number_input("Qty [PCS]", min_value=1, value=st.session_state.form_qty_input, key="form_qty_input")
             with col2:
                 if form_type != "Damages":
-                    expiry = st.date_input("Expiry Date", st.session_state.expiry_input, key="form_expiry_input")
+                    # Value uses the specific widget key
+                    expiry = st.date_input("Expiry Date", st.session_state.form_expiry_input, key="form_expiry_input")
                 else:
                     expiry = None
 
             # --- Row 2: Cost, Selling ---
             col5, col6 = st.columns(2)
             with col5:
-                cost_str = st.text_input("Cost", value=st.session_state.cost_input, key="form_cost_input")
+                # Value uses the specific widget key
+                cost_str = st.text_input("Cost", value=st.session_state.form_cost_input, key="form_cost_input")
             with col6:
-                selling_str = st.text_input("Selling Price", value=st.session_state.selling_input, key="form_selling_input")
+                # Value uses the specific widget key
+                selling_str = st.text_input("Selling Price", value=st.session_state.form_selling_input, key="form_selling_input")
 
             # Calculate and display GP%
             try:
@@ -312,7 +336,8 @@ else:
             st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
 
             # --- Remarks and Submit Button ---
-            remarks = st.text_area("Remarks [if any]", value=st.session_state.remarks_input, key="form_remarks_input")
+            # Value uses the specific widget key
+            remarks = st.text_area("Remarks [if any]", value=st.session_state.form_remarks_input, key="form_remarks_input")
 
             # Form submission button (only this button adds the item)
             submitted_item = st.form_submit_button(
@@ -336,12 +361,12 @@ else:
             success = process_item_entry(
                 st.session_state.barcode_value, 
                 final_item_name,               
-                st.session_state.form_qty_input, 
-                st.session_state.form_cost_input, 
-                st.session_state.form_selling_input, 
-                st.session_state.form_expiry_input if form_type != "Damages" else None, 
+                st.session_state.form_qty_input,        # Get value from widget key
+                st.session_state.form_cost_input,       # Get value from widget key
+                st.session_state.form_selling_input,    # Get value from widget key
+                st.session_state.form_expiry_input if form_type != "Damages" else None, # Get value from widget key
                 final_supplier,                
-                st.session_state.form_remarks_input,
+                st.session_state.form_remarks_input,    # Get value from widget key
                 form_type, 
                 outlet_name
             )
@@ -363,9 +388,10 @@ else:
                     st.session_state.barcode_value = ""
                     st.session_state.item_name_input = ""
                     st.session_state.supplier_input = ""
-                    st.session_state.cost_input = "0.0"
-                    st.session_state.selling_input = "0.0"
                     st.session_state.barcode_found = False
+                    st.session_state.temp_item_name_manual = "" 
+                    st.session_state.temp_supplier_manual = "" 
+                    reset_form_fields_to_defaults()
                     st.rerun() 
 
             with col_delete:
