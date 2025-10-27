@@ -124,7 +124,6 @@ def lookup_item_and_update_state():
     
     if not barcode:
         st.toast("⚠️ Barcode cleared.", icon="❌")
-        st.rerun()
         return
 
     if not item_data.empty:
@@ -149,7 +148,6 @@ def lookup_item_and_update_state():
             st.session_state.barcode_found = False 
             st.toast("⚠️ Barcode not found. Please enter item name and supplier manually.", icon="⚠️")
     
-    st.rerun() 
 # ------------------------------------------------------------------
 
 # -------------------------------------------------
@@ -224,13 +222,8 @@ if not st.session_state.logged_in:
             st.error("❌ Invalid username or password")
 
 else:
-    # Logout button
-    if st.sidebar.button("Logout 🚪", type="secondary"):
-        st.session_state.logged_in = False
-        st.session_state.submitted_items = [] 
-        st.session_state.submitted_feedback = [] 
-        st.rerun()
-
+    # --- LOGOUT BUTTON REMOVED ---
+    
     page = st.sidebar.radio("📌 Select Page", ["Outlet Dashboard", "Customer Feedback"])
 
     # ==========================================
