@@ -47,6 +47,8 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
              "barcode_value", "qty_input", "expiry_input", "remarks_input",
              "item_name_input", "supplier_input", 
              "cost_input", "selling_input",
+             # Manual Entry temporary keys
+             "temp_item_name_manual", "temp_supplier_manual",
              # Lookup state (temporary data from filter)
              "lookup_data", "submitted_feedback", "barcode_found"]: 
     if key not in st.session_state:
@@ -79,7 +81,6 @@ def update_supplier_state():
 
 # ------------------------------------------------------------------
 # --- Lookup Logic Function (Callback for Barcode Form) ---
-# FIX: Sets the barcode_found flag and loads/clears item details.
 # ------------------------------------------------------------------
 def lookup_item_and_update_state():
     barcode = st.session_state.lookup_barcode_input
@@ -89,6 +90,8 @@ def lookup_item_and_update_state():
     st.session_state.barcode_value = barcode 
     st.session_state.item_name_input = ""
     st.session_state.supplier_input = ""
+    st.session_state.temp_item_name_manual = "" # Clear temp manual keys
+    st.session_state.temp_supplier_manual = ""   # Clear temp manual keys
     st.session_state.barcode_found = False
     
     if not barcode:
@@ -114,7 +117,7 @@ def lookup_item_and_update_state():
             
             st.toast("✅ Item found. Details loaded.", icon="🔍")
         else:
-            # Barcode not found - ensures item_name_input and supplier_input remain empty
+            # Barcode not found - ensures item_name_input and supplier_input remain empty for manual entry
             st.session_state.barcode_found = False 
             st.toast("⚠️ Barcode not found. Please enter item name and supplier manually.", icon="⚠️")
     else:
@@ -125,6 +128,7 @@ def lookup_item_and_update_state():
 
 # -------------------------------------------------
 # --- Main Form Submission Handler (Handles Clearing) ---
+# FIX: Ensures all keys, including temp keys, are reset here.
 # -------------------------------------------------
 def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, supplier, remarks, form_type, outlet_name):
     
@@ -174,6 +178,8 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
     st.session_state.expiry_input = datetime.now().date()
     st.session_state.lookup_data = pd.DataFrame() 
     st.session_state.barcode_found = False
+    st.session_state.temp_item_name_manual = "" # CRITICAL: Reset the temporary keys
+    st.session_state.temp_supplier_manual = ""   # CRITICAL: Reset the temporary keys
     
     st.toast("✅ Added to list successfully! The form has been cleared.", icon="➕")
     return True
@@ -250,7 +256,7 @@ else:
              st.markdown("### ⚠️ Manual Item Entry (Barcode Not Found)")
              col_manual_name, col_manual_supplier = st.columns(2)
              with col_manual_name:
-                 # FIX: Use temporary key and on_change to update item_name_input
+                 # Use temporary key and on_change to update item_name_input
                  st.text_input(
                      "Item Name (Manual)", 
                      value=st.session_state.item_name_input, 
@@ -258,7 +264,7 @@ else:
                      on_change=update_item_name_state
                  )
              with col_manual_supplier:
-                 # FIX: Use temporary key and on_change to update supplier_input
+                 # Use temporary key and on_change to update supplier_input
                  st.text_input(
                      "Supplier Name (Manual)", 
                      value=st.session_state.supplier_input, 
@@ -322,14 +328,18 @@ else:
             final_item_name = st.session_state.item_name_input
             final_supplier = st.session_state.supplier_input
 
+            if not st.session_state.barcode_value.strip():
+                 st.toast("❌ Please enter a Barcode before adding to the list.", icon="❌")
+                 st.rerun()
+
             success = process_item_entry(
-                st.session_state.barcode_value, # The current barcode value
-                final_item_name,               # Name from lookup or manual entry
+                st.session_state.barcode_value, 
+                final_item_name,               
                 st.session_state.form_qty_input, 
                 st.session_state.form_cost_input, 
                 st.session_state.form_selling_input, 
                 st.session_state.form_expiry_input if form_type != "Damages" else None, 
-                final_supplier,                # Supplier from lookup or manual entry
+                final_supplier,                
                 st.session_state.form_remarks_input,
                 form_type, 
                 outlet_name
@@ -355,6 +365,8 @@ else:
                     st.session_state.cost_input = "0.0"
                     st.session_state.selling_input = "0.0"
                     st.session_state.barcode_found = False
+                    st.session_state.temp_item_name_manual = "" 
+                    st.session_state.temp_supplier_manual = "" 
                     st.rerun() 
 
             with col_delete:
