@@ -49,7 +49,9 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
              # Manual Entry temporary keys
              "temp_item_name_manual", "temp_supplier_manual",
              # Lookup state
-             "lookup_data", "submitted_feedback", "barcode_found"]: 
+             "lookup_data", "submitted_feedback", "barcode_found",
+             # NEW STATE VARIABLE FOR STAFF NAME
+             "staff_name"]: 
     
     if key not in st.session_state:
         if key in ["submitted_items", "submitted_feedback"]:
@@ -126,7 +128,7 @@ def lookup_item_and_update_state():
 # -------------------------------------------------
 # --- Main Form Submission Handler ---
 # -------------------------------------------------
-def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, supplier, remarks, form_type, outlet_name):
+def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, supplier, remarks, form_type, outlet_name, staff_name):
     
     # Validation
     if not barcode.strip():
@@ -134,6 +136,9 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
         return False
     if not item_name.strip():
         st.toast("⚠️ Item Name is required before adding.", icon="❌")
+        return False
+    if not staff_name.strip():
+        st.toast("⚠️ Staff Name is required before adding.", icon="❌")
         return False
 
     try:
@@ -160,12 +165,13 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
         "Expiry": expiry_display,
         "Supplier": supplier.strip(),
         "Remarks": remarks.strip(),
-        "Outlet": outlet_name
+        "Outlet": outlet_name,
+        "Staff Name": staff_name.strip() # NEW COLUMN ADDED HERE
     })
 
     # --- CLEAR ONLY THE NON-FORM/NON-ITEM STATE VARIABLES ---
     # Keep item_name_input and supplier_input populated for potential repeated entry.
-    st.session_state.barcode_value = ""          
+    st.session_state.barcode_value = ""         
     st.session_state.lookup_data = pd.DataFrame() 
     st.session_state.barcode_found = False
     
@@ -208,6 +214,15 @@ else:
         outlet_name = st.session_state.selected_outlet
         st.markdown(f"<h2 style='text-align:center;'>🏪 {outlet_name} Dashboard</h2>", unsafe_allow_html=True)
         form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"])
+        st.markdown("---")
+
+        # --- 0. Staff Name Input (NEW ADDITION) ---
+        st.session_state.staff_name = st.text_input(
+            "👤 Staff Name (Required)",
+            value=st.session_state.staff_name,
+            key="staff_name_input_key", # Persistent key for the staff name input
+            placeholder="Enter your full name"
+        )
         st.markdown("---")
 
         # --- 1. Dedicated Lookup Form (Enter key only triggers search/filter) ---
@@ -316,22 +331,29 @@ else:
             # Get the current, persistent item name and supplier from session state
             final_item_name = st.session_state.item_name_input
             final_supplier = st.session_state.supplier_input
+            final_staff_name = st.session_state.staff_name # GET STAFF NAME
 
             if not st.session_state.barcode_value.strip():
                  st.toast("❌ Please enter a Barcode before adding to the list.", icon="❌")
                  st.rerun() 
+            
+            # Check for staff name
+            if not final_staff_name.strip():
+                st.toast("❌ Please enter your Staff Name before adding to the list.", icon="❌")
+                st.rerun()
 
             success = process_item_entry(
                 st.session_state.barcode_value, 
-                final_item_name,               
-                qty,        
-                cost_str,   
+                final_item_name,                 
+                qty,         
+                cost_str,    
                 selling_str,
-                expiry,     
-                final_supplier,                
-                remarks,    
-                form_type, 
-                outlet_name
+                expiry,      
+                final_supplier,                  
+                remarks,     
+                form_type,   
+                outlet_name,
+                final_staff_name # PASS STAFF NAME
             )
             # Rerunning here finalizes the item list update and clears the item entry form
             if success:
@@ -351,7 +373,7 @@ else:
                     # Clear ALL state upon final submission 
                     st.session_state.submitted_items = []
                     
-                    # FINAL RESET OF ITEM LOOKUP DATA
+                    # FINAL RESET OF ITEM LOOKUP DATA AND STAFF NAME
                     st.session_state.barcode_value = ""
                     st.session_state.item_name_input = ""
                     st.session_state.supplier_input = ""
@@ -359,6 +381,7 @@ else:
                     st.session_state.temp_item_name_manual = "" 
                     st.session_state.temp_supplier_manual = "" 
                     st.session_state.lookup_data = pd.DataFrame() 
+                    st.session_state.staff_name = "" # RESET STAFF NAME
                     st.rerun() 
 
             with col_delete:
