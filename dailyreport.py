@@ -83,6 +83,21 @@ def update_supplier_state():
     st.session_state.supplier_input = st.session_state.temp_supplier_manual
 # ------------------------------------------------------------------
 
+def reset_form_fields_to_defaults():
+    """Resets all widget keys and their backing state variables to default values."""
+    # Reset form field keys (must match the 'key' in st.form)
+    st.session_state.form_qty_input = 1
+    st.session_state.form_expiry_input = datetime.now().date()
+    st.session_state.form_cost_input = "0.0"
+    st.session_state.form_selling_input = "0.0"
+    st.session_state.form_remarks_input = ""
+    
+    # Also reset their associated non-widget state (for consistency)
+    st.session_state.qty_input = 1
+    st.session_state.expiry_input = datetime.now().date()
+    st.session_state.cost_input = "0.0"
+    st.session_state.selling_input = "0.0"
+    st.session_state.remarks_input = ""
 
 # ------------------------------------------------------------------
 # --- Lookup Logic Function (Callback for Barcode Form) ---
@@ -97,7 +112,7 @@ def lookup_item_and_update_state():
     st.session_state.supplier_input = ""
     st.session_state.barcode_found = False
     
-    # Also reset the temporary keys for manual input to ensure they are empty if a new search is started
+    # Reset temporary keys to ensure they reflect the empty main state
     st.session_state.temp_item_name_manual = ""
     st.session_state.temp_supplier_manual = "" 
     
@@ -136,26 +151,8 @@ def lookup_item_and_update_state():
     st.rerun() 
 # ------------------------------------------------------------------
 
-def reset_form_fields_to_defaults():
-    """Resets all widget keys and their backing state variables to default values."""
-    # Reset form field keys (must match the 'key' in st.form)
-    st.session_state.form_qty_input = 1
-    st.session_state.form_expiry_input = datetime.now().date()
-    st.session_state.form_cost_input = "0.0"
-    st.session_state.form_selling_input = "0.0"
-    st.session_state.form_remarks_input = ""
-    
-    # Also reset their associated non-widget state (for consistency)
-    st.session_state.qty_input = 1
-    st.session_state.expiry_input = datetime.now().date()
-    st.session_state.cost_input = "0.0"
-    st.session_state.selling_input = "0.0"
-    st.session_state.remarks_input = ""
-
-
 # -------------------------------------------------
 # --- Main Form Submission Handler (Handles Clearing) ---
-# FIX: Calls reset_form_fields_to_defaults()
 # -------------------------------------------------
 def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, supplier, remarks, form_type, outlet_name):
     
@@ -200,10 +197,12 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
     st.session_state.supplier_input = ""         
     st.session_state.lookup_data = pd.DataFrame() 
     st.session_state.barcode_found = False
-    st.session_state.temp_item_name_manual = "" 
-    st.session_state.temp_supplier_manual = ""
     
-    # CRITICAL FIX: Reset the form fields themselves
+    # FIX: REMOVE THE CONFLICTING RESET OF CONDITIONAL WIDGET KEYS
+    # st.session_state.temp_item_name_manual = "" 
+    # st.session_state.temp_supplier_manual = "" 
+    
+    # Reset the form fields themselves
     reset_form_fields_to_defaults()
     
     st.toast("✅ Added to list successfully! The form has been cleared.", icon="➕")
@@ -389,6 +388,7 @@ else:
                     st.session_state.item_name_input = ""
                     st.session_state.supplier_input = ""
                     st.session_state.barcode_found = False
+                    # Clear temporary keys
                     st.session_state.temp_item_name_manual = "" 
                     st.session_state.temp_supplier_manual = "" 
                     reset_form_fields_to_defaults()
