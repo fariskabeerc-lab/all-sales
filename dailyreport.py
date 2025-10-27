@@ -218,7 +218,7 @@ else:
 
         # --- 0. Staff Name Input (NEW ADDITION) ---
         st.session_state.staff_name = st.text_input(
-            "👤 Staff Name (Required)",
+            "👤 Staff Name ",
             value=st.session_state.staff_name,
             key="staff_name_input_key", # Persistent key for the staff name input
             placeholder="Enter your full name"
