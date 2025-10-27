@@ -8,6 +8,36 @@ from datetime import datetime
 st.set_page_config(page_title="Outlet & Feedback Dashboard", layout="wide")
 
 # ==========================================
+# CUSTOM JAVASCRIPT/HTML TO FORCE NUMERIC KEYBOARD
+# ==========================================
+def inject_numeric_keyboard_script(target_label):
+    """
+    Injects JavaScript to find the text input widget by its label and set
+    its HTML 'inputmode' attribute to 'numeric', triggering the number keyboard on mobile.
+    """
+    script = f"""
+    <script>
+        function setInputMode() {{
+            const elements = document.querySelectorAll('label');
+            elements.forEach(label => {{
+                if (label.textContent.includes('{target_label}')) {{
+                    const input = label.nextElementSibling.querySelector('input');
+                    if (input) {{
+                        input.setAttribute('inputmode', 'numeric');
+                        input.setAttribute('pattern', '[0-9]*');
+                    }}
+                }}
+            }});
+        }}
+        // Run on load and whenever Streamlit rerenders the component (e.g., after a form submit)
+        window.onload = setInputMode;
+        // Also observe for changes in the DOM (needed for dynamic Streamlit content)
+        new MutationObserver(setInputMode).observe(document.body, {{ childList: true, subtree: true }});
+    </script>
+    """
+    st.markdown(script, unsafe_allow_html=True)
+
+# ==========================================
 # LOAD ITEM DATA (for auto-fill)
 # ==========================================
 @st.cache_data
@@ -92,9 +122,6 @@ def lookup_item_and_update_state():
     st.session_state.temp_item_name_manual = ""
     st.session_state.temp_supplier_manual = "" 
     
-    # NOTE: Since the main entry form uses clear_on_submit=True, 
-    # we do not need to manually reset its internal widget state keys here.
-
     if not barcode:
         st.toast("⚠️ Barcode cleared.", icon="❌")
         st.rerun()
@@ -128,7 +155,7 @@ def lookup_item_and_update_state():
 # -------------------------------------------------
 # --- Main Form Submission Handler ---
 # -------------------------------------------------
-def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, supplier, remarks, form_type, outlet_name, staff_name):
+def process_item_entry(barcode, item_name, qty, cost, selling, expiry, supplier, remarks, form_type, outlet_name, staff_name):
     
     # Validation
     if not barcode.strip():
@@ -142,11 +169,11 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
         return False
 
     try:
-        cost = float(cost_str)
+        cost = float(cost)
     except ValueError:
         cost = 0.0
     try:
-        selling = float(selling_str)
+        selling = float(selling)
     except ValueError:
         selling = 0.0
 
@@ -166,11 +193,10 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
         "Supplier": supplier.strip(),
         "Remarks": remarks.strip(),
         "Outlet": outlet_name,
-        "Staff Name": staff_name.strip() # NEW COLUMN ADDED HERE
+        "Staff Name": staff_name.strip() 
     })
 
     # --- CLEAR ONLY THE NON-FORM/NON-ITEM STATE VARIABLES ---
-    # Keep item_name_input and supplier_input populated for potential repeated entry.
     st.session_state.barcode_value = ""         
     st.session_state.lookup_data = pd.DataFrame() 
     st.session_state.barcode_found = False
@@ -215,10 +241,15 @@ else:
         st.markdown(f"<h2 style='text-align:center;'>🏪 {outlet_name} Dashboard</h2>", unsafe_allow_html=True)
         form_type = st.sidebar.radio("📋 Select Form Type", ["Expiry", "Damages", "Near Expiry"])
         st.markdown("---")
+        
+        # Inject the script to change the barcode field's inputmode
+        # The script targets the element with the label "Barcode Lookup"
+        inject_numeric_keyboard_script("Barcode Lookup")
 
-        # --- 0. Staff Name Input (NEW ADDITION) ---
+
+        # --- 0. Staff Name Input ---
         st.session_state.staff_name = st.text_input(
-            "👤 Staff Name ",
+            "👤 Staff Name (Required)",
             value=st.session_state.staff_name,
             key="staff_name_input_key", # Persistent key for the staff name input
             placeholder="Enter your full name"
@@ -231,7 +262,7 @@ else:
             col_bar, col_btn = st.columns([5, 1])
             
             with col_bar:
-                # Key is used to get the value in the callback
+                # Barcode Lookup remains st.text_input, but JS will set inputmode='numeric'
                 st.text_input(
                     "Barcode Lookup",
                     key="lookup_barcode_input", 
@@ -260,7 +291,6 @@ else:
              st.markdown("### ⚠️ Manual Item Entry (Barcode Not Found)")
              col_manual_name, col_manual_supplier = st.columns(2)
              with col_manual_name:
-                 # Key is used to store and update the temporary value. on_change updates the main state.
                  st.text_input(
                      "Item Name (Manual)", 
                      value=st.session_state.item_name_input, 
@@ -268,7 +298,6 @@ else:
                      on_change=update_item_name_state
                  )
              with col_manual_supplier:
-                 # Key is used to store and update the temporary value. on_change updates the main state.
                  st.text_input(
                      "Supplier Name (Manual)", 
                      value=st.session_state.supplier_input, 
@@ -282,33 +311,30 @@ else:
 
 
         # --- 3. Start of the Main Item Entry Form ---
-        # NOTE: clear_on_submit=True resets the fields inside the form
         with st.form("item_entry_form", clear_on_submit=True): 
             
             # --- Row 1: Qty and Expiry ---
             col1, col2 = st.columns(2)
             with col1:
-                qty = st.number_input("Qty [PCS]", min_value=1, value=1)
+                qty = st.number_input("Qty [PCS]", min_value=1, value=1, step=1)
             with col2:
                 if form_type != "Damages":
                     expiry = st.date_input("Expiry Date", datetime.now().date())
                 else:
                     expiry = None
 
-            # --- Row 2: Cost, Selling ---
+            # --- Row 2: Cost, Selling (Already st.number_input) ---
             col5, col6 = st.columns(2)
             with col5:
-                cost_str = st.text_input("Cost", value="0.0")
+                # This uses number keyboard by default on mobile
+                cost = st.number_input("Cost", min_value=0.0, value=0.0, step=0.01)
             with col6:
-                selling_str = st.text_input("Selling Price", value="0.0")
+                # This uses number keyboard by default on mobile
+                selling = st.number_input("Selling Price", min_value=0.0, value=0.0, step=0.01)
 
             # Calculate and display GP%
-            try:
-                temp_cost = float(cost_str)
-                temp_selling = float(selling_str)
-            except ValueError:
-                temp_cost = 0.0
-                temp_selling = 0.0
+            temp_cost = float(cost)
+            temp_selling = float(selling)
                 
             gp = ((temp_selling - temp_cost) / temp_cost * 100) if temp_cost else 0
             st.info(f"💹 **GP% (Profit Margin)**: {gp:.2f}%")
@@ -328,16 +354,14 @@ else:
         # --------------------------------------------------------
         if submitted_item:
             
-            # Get the current, persistent item name and supplier from session state
             final_item_name = st.session_state.item_name_input
             final_supplier = st.session_state.supplier_input
-            final_staff_name = st.session_state.staff_name # GET STAFF NAME
+            final_staff_name = st.session_state.staff_name 
 
             if not st.session_state.barcode_value.strip():
                  st.toast("❌ Please enter a Barcode before adding to the list.", icon="❌")
                  st.rerun() 
             
-            # Check for staff name
             if not final_staff_name.strip():
                 st.toast("❌ Please enter your Staff Name before adding to the list.", icon="❌")
                 st.rerun()
@@ -346,16 +370,16 @@ else:
                 st.session_state.barcode_value, 
                 final_item_name,                 
                 qty,         
-                cost_str,    
-                selling_str,
+                cost,    
+                selling, 
                 expiry,      
                 final_supplier,                  
                 remarks,     
                 form_type,   
                 outlet_name,
-                final_staff_name # PASS STAFF NAME
+                final_staff_name 
             )
-            # Rerunning here finalizes the item list update and clears the item entry form
+            
             if success:
                  st.rerun()
 
@@ -370,10 +394,9 @@ else:
             with col_submit:
                 if st.button("📤 Submit All", type="primary"):
                     st.success(f"✅ All {len(st.session_state.submitted_items)} items submitted for {outlet_name} (demo). Resetting.")
-                    # Clear ALL state upon final submission 
-                    st.session_state.submitted_items = []
                     
                     # FINAL RESET OF ITEM LOOKUP DATA AND STAFF NAME
+                    st.session_state.submitted_items = []
                     st.session_state.barcode_value = ""
                     st.session_state.item_name_input = ""
                     st.session_state.supplier_input = ""
@@ -381,7 +404,7 @@ else:
                     st.session_state.temp_item_name_manual = "" 
                     st.session_state.temp_supplier_manual = "" 
                     st.session_state.lookup_data = pd.DataFrame() 
-                    st.session_state.staff_name = "" # RESET STAFF NAME
+                    st.session_state.staff_name = "" 
                     st.rerun() 
 
             with col_delete:
@@ -390,7 +413,6 @@ else:
                     to_delete = st.selectbox("Select Item to Delete", ["Select item to remove..."] + options)
                     if to_delete != "Select item to remove...":
                         if st.button("❌ Delete Selected", type="secondary"):
-                            # The index is the position in the list minus 1 for the "Select..." option
                             index = options.index(to_delete) 
                             st.session_state.submitted_items.pop(index)
                             st.success("✅ Item removed")
@@ -408,7 +430,6 @@ else:
 
         with st.form("feedback_form", clear_on_submit=True):
             name = st.text_input("Customer Name")
-            # --- EMAIL OPTION REMOVED HERE ---
             rating = st.slider("Rate Our Outlet", 1, 5, 5)
             feedback = st.text_area("Your Feedback (Required)")
             submitted = st.form_submit_button("📤 Submit Feedback")
@@ -417,7 +438,7 @@ else:
             if name.strip() and feedback.strip():
                 st.session_state.submitted_feedback.append({
                     "Customer Name": name,
-                    "Email": "N/A", # Set to N/A since the field is removed
+                    "Email": "N/A", 
                     "Rating": f"{rating} / 5",
                     "Outlet": outlet_name,
                     "Feedback": feedback,
