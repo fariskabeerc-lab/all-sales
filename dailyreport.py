@@ -48,7 +48,7 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
              "item_name_input", "supplier_input", 
              "cost_input", "selling_input",
              # Lookup state (temporary data from filter)
-             "lookup_data", "submitted_feedback"]:
+             "lookup_data", "submitted_feedback", "barcode_found"]: # Added barcode_found flag
     if key not in st.session_state:
         if key in ["submitted_items", "submitted_feedback"]:
             st.session_state[key] = []
@@ -59,23 +59,25 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
         elif key == "expiry_input":
             st.session_state[key] = datetime.now().date()
         elif key in ["cost_input", "selling_input"]:
-            st.session_state[key] = "0.0" # Ensure cost/selling starts at 0.0
+            st.session_state[key] = "0.0" 
+        elif key == "barcode_found":
+            st.session_state[key] = False # Initialize the flag
         else:
             st.session_state[key] = ""
 
 # ------------------------------------------------------------------
 # --- Lookup Logic Function (Callback for Barcode Form) ---
-# FIX: This now displays the table AND transfers the details in one step.
+# FIX: Sets the barcode_found flag and loads/clears item details.
 # ------------------------------------------------------------------
 def lookup_item_and_update_state():
-    # Retrieve the value from the submitted form's key
     barcode = st.session_state.lookup_barcode_input
     
-    # Reset lookup data and current item details
+    # Reset states for a new search
     st.session_state.lookup_data = pd.DataFrame()
     st.session_state.barcode_value = barcode 
     st.session_state.item_name_input = ""
     st.session_state.supplier_input = ""
+    st.session_state.barcode_found = False
     
     if not barcode:
         st.toast("⚠️ Barcode cleared.", icon="❌")
@@ -83,11 +85,10 @@ def lookup_item_and_update_state():
         return
 
     if not item_data.empty:
-        # Ensure comparison is on stripped strings
         match = item_data[item_data["Item Bar Code"].astype(str).str.strip() == str(barcode).strip()]
         
         if not match.empty:
-            # Get the first matching row
+            st.session_state.barcode_found = True
             row = match.iloc[0]
             
             # 1. Prepare data for display table
@@ -99,13 +100,13 @@ def lookup_item_and_update_state():
             st.session_state.item_name_input = str(row["Item Name"])
             st.session_state.supplier_input = str(row["LP Supplier"])
             
-            st.toast("✅ Item found. Details loaded to entry form.", icon="🔍")
+            st.toast("✅ Item found. Details loaded.", icon="🔍")
         else:
-            st.toast("⚠️ Barcode not found. Details cleared.", icon="⚠️")
+            st.session_state.barcode_found = False # Barcode not found
+            st.toast("⚠️ Barcode not found. Please enter item name and supplier manually.", icon="⚠️")
     else:
          st.toast("⚠️ Item data file is empty.", icon="⚠️")
     
-    # CRITICAL: Force a rerun here so the display and main form inputs update
     st.rerun() 
 # ------------------------------------------------------------------
 
@@ -116,7 +117,7 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
     
     # Validation and conversion
     if not barcode.strip() or not item_name.strip():
-        st.toast("⚠️ Fill barcode and item name before adding.", icon="❌")
+        st.toast("⚠️ Barcode and Item Name are required before adding.", icon="❌")
         return False
 
     try:
@@ -146,8 +147,7 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
         "Outlet": outlet_name
     })
 
-    # --- CRITICAL FIX: CLEAR ALL COLUMNS SAFELY ---
-    # Clear the generic session state keys that the main form uses for its 'value'
+    # --- CLEAR ALL COLUMNS SAFELY ---
     st.session_state.barcode_value = ""          
     st.session_state.item_name_input = ""        
     st.session_state.supplier_input = ""         
@@ -156,7 +156,8 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
     st.session_state.qty_input = 1               
     st.session_state.remarks_input = ""          
     st.session_state.expiry_input = datetime.now().date()
-    st.session_state.lookup_data = pd.DataFrame() # Clear the lookup table display
+    st.session_state.lookup_data = pd.DataFrame() 
+    st.session_state.barcode_found = False
     
     st.toast("✅ Added to list successfully! The form has been cleared.", icon="➕")
     return True
@@ -225,9 +226,23 @@ else:
         # --- 2. Item Details Display Panel (The 'Filter' result) ---
         if not st.session_state.lookup_data.empty:
             st.markdown("### 🔍 Found Item Details")
-            # Display the table with only Name and Supplier
             st.dataframe(st.session_state.lookup_data, use_container_width=True, hide_index=True)
-            st.markdown("---") # Separator after lookup panel
+        
+        # --- 2b. Manual Entry Fallback ---
+        # FIX: Show manual entry fields ONLY if a search was done and the barcode was NOT found
+        if st.session_state.barcode_value.strip() and not st.session_state.barcode_found:
+             st.markdown("### ⚠️ Manual Item Entry (Barcode Not Found)")
+             col_manual_name, col_manual_supplier = st.columns(2)
+             with col_manual_name:
+                 # The manual input updates the same session state variables the main form uses
+                 st.text_input("Item Name (Manual)", value=st.session_state.item_name_input, key="manual_item_name_input")
+             with col_manual_supplier:
+                 st.text_input("Supplier Name (Manual)", value=st.session_state.supplier_input, key="manual_supplier_input")
+
+        # Separator only if a search has happened
+        if st.session_state.barcode_value.strip():
+             st.markdown("---") 
+
 
         # --- 3. Start of the Main Item Entry Form ---
         with st.form("item_entry_form", clear_on_submit=False): 
@@ -242,20 +257,12 @@ else:
                 else:
                     expiry = None
 
-            # --- Row 2: Item Name, Cost, Selling, Supplier ---
-            col4, col5, col6, col7 = st.columns(4)
-            with col4:
-                # Value initialized from session state (updated by automatic transfer)
-                item_name = st.text_input("Item Name", value=st.session_state.item_name_input, key="form_item_name_input")
+            # --- Row 2: Cost, Selling ---
+            col5, col6 = st.columns(2)
             with col5:
-                # Cost is editable and defaults to "0.0"
                 cost_str = st.text_input("Cost", value=st.session_state.cost_input, key="form_cost_input")
             with col6:
-                # Selling is editable and defaults to "0.0"
                 selling_str = st.text_input("Selling Price", value=st.session_state.selling_input, key="form_selling_input")
-            with col7:
-                # Value initialized from session state (updated by automatic transfer)
-                supplier = st.text_input("Supplier Name", value=st.session_state.supplier_input, key="form_supplier_input")
 
             # Calculate and display GP%
             try:
@@ -282,21 +289,33 @@ else:
         # --- Handle Main Form Submission ONLY on Button Click ---
         # --------------------------------------------------------
         if submitted_item:
-            # We use the barcode from the *lookup form state* since the lookup form holds the master barcode value
+            # Determine the Item Name and Supplier based on whether the barcode was found or manually entered
+            # If the barcode was found, item_name_input and supplier_input hold the loaded values.
+            # If the barcode was NOT found, they hold the manually entered values (from keys 'manual_item_name_input'/'manual_supplier_input').
+            
+            # Use the most recent session state values
+            final_item_name = st.session_state.item_name_input
+            final_supplier = st.session_state.supplier_input
+
+            # Crucial check: Ensure a barcode has been entered
+            if not st.session_state.barcode_value.strip():
+                 st.toast("❌ Please enter a Barcode before adding to the list.", icon="❌")
+                 st.rerun()
+
             success = process_item_entry(
-                st.session_state.barcode_value, # The barcode used for lookup
-                st.session_state.form_item_name_input, 
+                st.session_state.barcode_value, 
+                final_item_name, 
                 st.session_state.form_qty_input, 
-                st.session_state.form_cost_input, # Use manually entered/edited cost
-                st.session_state.form_selling_input, # Use manually entered/edited selling price
+                st.session_state.form_cost_input, 
+                st.session_state.form_selling_input, 
                 st.session_state.form_expiry_input if form_type != "Damages" else None, 
-                st.session_state.form_supplier_input, 
+                final_supplier, 
                 st.session_state.form_remarks_input,
                 form_type, 
                 outlet_name
             )
             if success:
-                st.rerun() # Rerun to reflect list update and clear inputs via session state
+                st.rerun() 
 
         # Displaying and managing the list
         if st.session_state.submitted_items:
@@ -315,7 +334,8 @@ else:
                     st.session_state.supplier_input = ""
                     st.session_state.cost_input = "0.0"
                     st.session_state.selling_input = "0.0"
-                    st.rerun() # Rerun to fully reset the page
+                    st.session_state.barcode_found = False
+                    st.rerun() 
 
             with col_delete:
                 options = [f"{i+1}. {item['Item Name']} ({item['Qty']} pcs)" for i, item in enumerate(st.session_state.submitted_items)]
