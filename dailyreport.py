@@ -8,6 +8,74 @@ from datetime import datetime
 st.set_page_config(page_title="Outlet & Feedback Dashboard", layout="wide")
 
 # ==========================================
+# CUSTOM STYLES (New Section)
+# ==========================================
+# CSS to style the st.radio widget as a row of colored boxes
+CUSTOM_RATING_CSS = """
+<style>
+/* Target the div that contains the radio buttons */
+div[data-testid="stForm"] > div > div:nth-child(4) > div > div > div > div:nth-child(3) > div {
+    display: flex; /* Makes the rating options sit in a row */
+    justify-content: space-around;
+    align-items: center;
+    padding: 10px 0;
+}
+
+/* Style for each individual rating box */
+div[data-testid="stForm"] > div > div:nth-child(4) div[role="radiogroup"] label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 40px; 
+    height: 40px; 
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+    user-select: none; /* Prevents text selection on tap */
+}
+
+/* Style for the text inside the box (the number) */
+div[data-testid="stForm"] > div > div:nth-child(4) div[role="radiogroup"] label > div {
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+}
+
+/* Style when the radio button is checked (the green effect) */
+div[data-testid="stForm"] > div > div:nth-child(4) div[role="radiogroup"] label input:checked + div {
+    background-color: #38C172 !important; /* Green background */
+    border-color: #38C172 !important; /* Green border */
+    color: white !important; /* White text */
+}
+
+/* Hides the default Streamlit radio circle */
+div[data-testid="stForm"] > div > div:nth-child(4) div[role="radiogroup"] label input {
+    display: none;
+}
+
+/* Apply the checked style to the parent label div */
+div[data-testid="stForm"] > div > div:nth-child(4) div[role="radiogroup"] label input:checked {
+    /* This rule is complex in Streamlit's shadow DOM. We rely on the checked + div selector above. */
+}
+
+/* To ensure the green background applies correctly, we need to target the internal div Streamlit uses */
+div[data-testid="stForm"] > div > div:nth-child(4) div[role="radiogroup"] label input:checked + div {
+    /* Streamlit structure is complex, this targets the inner container of the radio button. */
+    background-color: #38C172 !important;
+}
+
+/* This targets the actual box content div */
+div[data-testid="stForm"] > div > div:nth-child(4) div[role="radiogroup"] label > div:nth-child(2) > div {
+    padding: 0;
+    margin: 0;
+}
+</style>
+"""
+
+# ==========================================
 # CUSTOM JAVASCRIPT/HTML TO FORCE NUMERIC KEYBOARD
 # ==========================================
 def inject_numeric_keyboard_script(target_label):
@@ -222,7 +290,8 @@ if not st.session_state.logged_in:
             st.error("❌ Invalid username or password")
 
 else:
-    # --- LOGOUT BUTTON REMOVED ---
+    # APPLY CUSTOM CSS FOR RATING BOXES HERE
+    st.markdown(CUSTOM_RATING_CSS, unsafe_allow_html=True) 
     
     page = st.sidebar.radio("📌 Select Page", ["Outlet Dashboard", "Customer Feedback"])
 
@@ -413,7 +482,7 @@ else:
 
     
     # ==========================================
-    # CUSTOMER FEEDBACK PAGE (MODIFIED: EMAIL REMOVED)
+    # CUSTOMER FEEDBACK PAGE (MODIFIED: RATING BOXES)
     # ==========================================
     else:
         outlet_name = st.session_state.selected_outlet
@@ -423,7 +492,19 @@ else:
 
         with st.form("feedback_form", clear_on_submit=True):
             name = st.text_input("Customer Name")
-            rating = st.slider("Rate Our Outlet", 1, 5, 5)
+            
+            st.markdown("🌟 **Rate Our Outlet**")
+            # --- CUSTOM RATING IMPLEMENTATION ---
+            # Using st.radio in a horizontal layout, styled by the injected CSS
+            rating = st.radio(
+                "hidden_rating_label", # Use a label that won't show
+                options=[1, 2, 3, 4, 5],
+                index=4, # Default to 5
+                horizontal=True, # Critical for the horizontal layout
+                key="customer_rating_radio",
+                label_visibility="collapsed" # Hide the label
+            )
+            
             feedback = st.text_area("Your Feedback (Required)")
             submitted = st.form_submit_button("📤 Submit Feedback")
 
