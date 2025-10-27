@@ -47,7 +47,7 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
              "barcode_value", "qty_input", "expiry_input", "remarks_input",
              "item_name_input", "supplier_input", 
              "cost_input", "selling_input",
-             # Manual Entry temporary keys
+             # Manual Entry temporary keys (must exist for on_change)
              "temp_item_name_manual", "temp_supplier_manual",
              # Lookup state (temporary data from filter)
              "lookup_data", "submitted_feedback", "barcode_found"]: 
@@ -71,10 +71,12 @@ for key in ["logged_in", "selected_outlet", "submitted_items",
 # --- Helper functions to synchronize manual inputs ---
 def update_item_name_state():
     # This is called when the manual item name input changes
+    # It updates the main item_name_input state variable
     st.session_state.item_name_input = st.session_state.temp_item_name_manual
 
 def update_supplier_state():
     # This is called when the manual supplier input changes
+    # It updates the main supplier_input state variable
     st.session_state.supplier_input = st.session_state.temp_supplier_manual
 # ------------------------------------------------------------------
 
@@ -90,10 +92,11 @@ def lookup_item_and_update_state():
     st.session_state.barcode_value = barcode 
     st.session_state.item_name_input = ""
     st.session_state.supplier_input = ""
-    st.session_state.temp_item_name_manual = "" # Clear temp manual keys
-    st.session_state.temp_supplier_manual = ""   # Clear temp manual keys
     st.session_state.barcode_found = False
     
+    # NOTE: We DO NOT reset temp_item_name_manual/temp_supplier_manual here, 
+    # we just let the main inputs control them via their 'value'.
+
     if not barcode:
         st.toast("⚠️ Barcode cleared.", icon="❌")
         st.rerun()
@@ -128,7 +131,7 @@ def lookup_item_and_update_state():
 
 # -------------------------------------------------
 # --- Main Form Submission Handler (Handles Clearing) ---
-# FIX: Ensures all keys, including temp keys, are reset here.
+# FIX: Removed the conflicting reset of temporary keys.
 # -------------------------------------------------
 def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, supplier, remarks, form_type, outlet_name):
     
@@ -167,7 +170,7 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
         "Outlet": outlet_name
     })
 
-    # --- CLEAR ALL COLUMNS SAFELY ---
+    # --- CLEAR ALL COLUMNS SAFELY (THIS TRIGGERS RERUN AND CLEARS FORM) ---
     st.session_state.barcode_value = ""          
     st.session_state.item_name_input = ""        
     st.session_state.supplier_input = ""         
@@ -178,8 +181,6 @@ def process_item_entry(barcode, item_name, qty, cost_str, selling_str, expiry, s
     st.session_state.expiry_input = datetime.now().date()
     st.session_state.lookup_data = pd.DataFrame() 
     st.session_state.barcode_found = False
-    st.session_state.temp_item_name_manual = "" # CRITICAL: Reset the temporary keys
-    st.session_state.temp_supplier_manual = ""   # CRITICAL: Reset the temporary keys
     
     st.toast("✅ Added to list successfully! The form has been cleared.", icon="➕")
     return True
@@ -259,6 +260,7 @@ else:
                  # Use temporary key and on_change to update item_name_input
                  st.text_input(
                      "Item Name (Manual)", 
+                     # Set initial value from the main state, which should be empty on 'not found'
                      value=st.session_state.item_name_input, 
                      key="temp_item_name_manual", 
                      on_change=update_item_name_state
@@ -267,6 +269,7 @@ else:
                  # Use temporary key and on_change to update supplier_input
                  st.text_input(
                      "Supplier Name (Manual)", 
+                     # Set initial value from the main state, which should be empty on 'not found'
                      value=st.session_state.supplier_input, 
                      key="temp_supplier_manual", 
                      on_change=update_supplier_state
@@ -322,8 +325,6 @@ else:
         # --- Handle Main Form Submission ONLY on Button Click ---
         # --------------------------------------------------------
         if submitted_item:
-            # Item Name and Supplier are pulled from the main item_name_input/supplier_input keys,
-            # which are updated either by the successful search or the manual input.
             
             final_item_name = st.session_state.item_name_input
             final_supplier = st.session_state.supplier_input
@@ -365,8 +366,6 @@ else:
                     st.session_state.cost_input = "0.0"
                     st.session_state.selling_input = "0.0"
                     st.session_state.barcode_found = False
-                    st.session_state.temp_item_name_manual = "" 
-                    st.session_state.temp_supplier_manual = "" 
                     st.rerun() 
 
             with col_delete:
